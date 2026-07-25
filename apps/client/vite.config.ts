@@ -16,6 +16,11 @@ function externalizeNodeModules(id: string): boolean {
 }
 
 export default defineConfig({
+  // Some VPN/proxy setups intercept the "localhost" hostname but leave the
+  // loopback IP alone — binding explicitly to 127.0.0.1 sidesteps that.
+  server: {
+    host: "127.0.0.1",
+  },
   plugins: [
     react(),
     electron({
