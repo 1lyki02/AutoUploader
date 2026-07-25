@@ -1,17 +1,23 @@
 /**
- * TikTok changes its web upload DOM without notice and without a public API to
- * depend on instead — this file is the single place to patch when uploads start
- * failing. These selectors have NOT been verified against the live site by an
- * automated test in this repo (no way to browse TikTok from the environment that
- * wrote this file) — verify/patch them against the real page before relying on
- * automatic posting.
+ * Verified against a working Python/Selenium prototype (undetected_chromedriver)
+ * the user had already built and tested against the live site — these are real,
+ * exercised selectors, not guesses. TikTok's upload flow now lives under
+ * "TikTok Studio", not the old plain /upload path. Still the single place to
+ * patch if TikTok changes its DOM again.
  */
 export const TIKTOK_SELECTORS = {
   loginUrl: "https://www.tiktok.com/login",
-  uploadPageUrl: "https://www.tiktok.com/upload?lang=en",
+  uploadPageUrl: "https://www.tiktok.com/tiktokstudio/upload",
   /** Cookie TikTok sets once login completes — used to detect a finished manual login. */
   sessionCookieName: "sessionid",
   fileInput: 'input[type="file"]',
-  captionEditor: '[data-e2e="video-caption"] [contenteditable="true"]',
-  postButton: '[data-e2e="post-button"]',
+  cookieConsentButtonText: /Разрешить все|Accept all/,
+  /** Dismisses the post-upload "sample"/onboarding tooltip. */
+  gotItButtonText: /Понятно|Got it/,
+  captionEditor: 'div[contenteditable="true"]',
+  postButton: '[data-e2e="post_video_button"]',
+  postButtonFallbackText: /Опубликовать|^Post$/,
+  /** TikTok sometimes shows a confirmation modal (e.g. copyright notice) after the first Post click. */
+  modalContainer: '[class*="modal"], [class*="dialog"]',
+  modalPostButtonText: /Опубликовать|^Post$/,
 } as const;

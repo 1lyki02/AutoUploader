@@ -4,7 +4,8 @@
     "noEmit": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
-    "types": ["node"]
+    "types": ["node"],
+    "lib": ["ES2022", "DOM"]
   },
   "include": ["src/main", "src/preload"]
 }

@@ -133,16 +133,16 @@ export function App() {
     setUploadingId(account.id);
 
     if (account.platform === "tiktok") {
-      setStatus("Открываю TikTok — заполню видео и подпись, пост нажмёшь сам в открывшемся окне…");
+      setStatus("Публикую на TikTok автоматически (займёт около минуты)…");
       try {
-        await window.api.video.prepareTiktokUpload({
+        await window.api.video.uploadToTiktok({
           accountId: account.id,
           filePath,
           caption: title,
         });
-        setStatus("Готово: проверь видео в открывшемся окне TikTok и нажми «Опубликовать» вручную.");
+        setStatus("Опубликовано в TikTok.");
       } catch (err) {
-        setStatus(`Ошибка подготовки загрузки: ${(err as Error).message}`);
+        setStatus(`Ошибка загрузки в TikTok: ${(err as Error).message}`);
       } finally {
         setUploadingId(null);
       }

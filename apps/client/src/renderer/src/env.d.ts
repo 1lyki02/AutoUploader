@@ -22,7 +22,7 @@ export interface UploadYoutubeParams {
   privacyStatus?: "private" | "unlisted" | "public";
 }
 
-export interface PrepareTiktokUploadParams {
+export interface UploadTiktokParams {
   accountId: string;
   filePath: string;
   caption?: string;
@@ -42,7 +42,7 @@ declare global {
       video: {
         pickFile: () => Promise<string | null>;
         uploadToYoutube: (params: UploadYoutubeParams) => Promise<{ videoId: string }>;
-        prepareTiktokUpload: (params: PrepareTiktokUploadParams) => Promise<void>;
+        uploadToTiktok: (params: UploadTiktokParams) => Promise<void>;
       };
     };
   }
