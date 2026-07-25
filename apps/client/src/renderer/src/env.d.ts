@@ -13,6 +13,7 @@ export interface UploadYoutubeParams {
   filePath: string;
   title: string;
   description?: string;
+  privacyStatus?: "private" | "unlisted" | "public";
 }
 
 declare global {

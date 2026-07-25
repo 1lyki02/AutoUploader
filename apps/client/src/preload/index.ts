@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld("api", {
       filePath: string;
       title: string;
       description?: string;
+      privacyStatus?: "private" | "unlisted" | "public";
     }) => ipcRenderer.invoke(IPC_CHANNELS.uploadToYoutube, params),
   },
 });

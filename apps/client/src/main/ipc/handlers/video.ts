@@ -12,6 +12,7 @@ export interface UploadYoutubeParams {
   filePath: string;
   title: string;
   description?: string;
+  privacyStatus?: "private" | "unlisted" | "public";
 }
 
 export function registerVideoHandlers(): void {
@@ -42,6 +43,7 @@ export function registerVideoHandlers(): void {
         filePath: params.filePath,
         title: params.title,
         description: params.description,
+        privacyStatus: params.privacyStatus ?? "private",
       },
     );
 
