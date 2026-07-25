@@ -1,6 +1,11 @@
 import { dialog, ipcMain } from "electron";
 import { eq } from "drizzle-orm";
-import { refreshYouTubeAccessToken, uploadYouTubeShort } from "@autouploader/automation";
+import {
+  refreshYouTubeAccessToken,
+  uploadYouTubeShort,
+  prepareTikTokUpload,
+} from "@autouploader/automation";
+import type { ProxyConfig } from "@autouploader/shared";
 import { getYoutubeOAuthCredentials } from "../../config/youtube.js";
 import { getDb } from "../../db/client.js";
 import { accounts } from "../../db/schema.js";
@@ -13,6 +18,12 @@ export interface UploadYoutubeParams {
   title: string;
   description?: string;
   privacyStatus?: "private" | "unlisted" | "public";
+}
+
+export interface PrepareTiktokUploadParams {
+  accountId: string;
+  filePath: string;
+  caption?: string;
 }
 
 export function registerVideoHandlers(): void {
@@ -49,4 +60,25 @@ export function registerVideoHandlers(): void {
 
     return { videoId };
   });
+
+  ipcMain.handle(
+    IPC_CHANNELS.prepareTiktokUpload,
+    async (_event, params: PrepareTiktokUploadParams) => {
+      const db = getDb();
+      const row = db.select().from(accounts).where(eq(accounts.id, params.accountId)).get();
+      if (!row) {
+        throw new Error("Аккаунт не найден");
+      }
+
+      const { storageState } = decryptJson<{ storageState: object }>(row.credentials);
+      const proxy = row.proxy ? (JSON.parse(row.proxy) as ProxyConfig) : undefined;
+
+      await prepareTikTokUpload({
+        storageState,
+        proxy,
+        filePath: params.filePath,
+        caption: params.caption,
+      });
+    },
+  );
 }

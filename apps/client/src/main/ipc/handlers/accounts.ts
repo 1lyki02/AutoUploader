@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { ipcMain, shell } from "electron";
 import { eq } from "drizzle-orm";
-import { runYouTubeLoginFlow } from "@autouploader/automation";
+import { runYouTubeLoginFlow, runTikTokLoginFlow } from "@autouploader/automation";
 import { ProxyConfigSchema, type ProxyConfig } from "@autouploader/shared";
 import { getYoutubeOAuthCredentials } from "../../config/youtube.js";
 import { getDb } from "../../db/client.js";
@@ -42,6 +42,25 @@ export function registerAccountsHandlers(): void {
         platform: "youtube",
         label,
         credentials: encryptJson({ refreshToken: tokens.refreshToken }),
+        proxy: null,
+        createdAt: new Date(),
+      })
+      .run();
+
+    return { id, label };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.connectTiktokAccount, async (_event, label: string) => {
+    const { storageState } = await runTikTokLoginFlow();
+
+    const db = getDb();
+    const id = randomUUID();
+    db.insert(accounts)
+      .values({
+        id,
+        platform: "tiktok",
+        label,
+        credentials: encryptJson({ storageState }),
         proxy: null,
         createdAt: new Date(),
       })

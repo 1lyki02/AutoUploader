@@ -18,6 +18,7 @@
     "drizzle-orm": "^0.38.2",
     "google-auth-library": "^9.15.0",
     "googleapis": "^144.0.0",
+    "patchright": "^1.49.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.24.1"

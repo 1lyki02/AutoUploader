@@ -9,7 +9,7 @@ function AccountRow({
 }: {
   account: AccountSummary;
   onChanged: () => void;
-  onUpload: (accountId: string) => void;
+  onUpload: (account: AccountSummary) => void;
   uploading: boolean;
 }) {
   const [server, setServer] = useState(account.proxy?.server ?? "");
@@ -39,7 +39,7 @@ function AccountRow({
     <li style={{ marginTop: 12, borderTop: "1px solid #ddd", paddingTop: 8 }}>
       <div>
         [{account.platform}] {account.label}{" "}
-        <button onClick={() => onUpload(account.id)} disabled={uploading}>
+        <button onClick={() => onUpload(account)} disabled={uploading}>
           {uploading ? "Загружаю…" : "Загрузить видео сюда"}
         </button>{" "}
         <button onClick={remove}>Удалить</button>
@@ -106,21 +106,53 @@ export function App() {
     }
   };
 
+  const connectTiktok = async () => {
+    setConnecting(true);
+    setStatus("Открылось окно TikTok — войди в аккаунт любым способом (до 5 минут на вход)…");
+    try {
+      await window.api.accounts.connectTiktok("TikTok");
+      setStatus("Аккаунт подключён.");
+      refreshAccounts();
+    } catch (err) {
+      setStatus(`Ошибка подключения: ${(err as Error).message}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const pickFile = async () => {
     const path = await window.api.video.pickFile();
     setFilePath(path);
   };
 
-  const upload = async (accountId: string) => {
+  const upload = async (account: AccountSummary) => {
     if (!filePath) {
       setStatus("Сначала выбери видеофайл.");
       return;
     }
-    setUploadingId(accountId);
+    setUploadingId(account.id);
+
+    if (account.platform === "tiktok") {
+      setStatus("Открываю TikTok — заполню видео и подпись, пост нажмёшь сам в открывшемся окне…");
+      try {
+        await window.api.video.prepareTiktokUpload({
+          accountId: account.id,
+          filePath,
+          caption: title,
+        });
+        setStatus("Готово: проверь видео в открывшемся окне TikTok и нажми «Опубликовать» вручную.");
+      } catch (err) {
+        setStatus(`Ошибка подготовки загрузки: ${(err as Error).message}`);
+      } finally {
+        setUploadingId(null);
+      }
+      return;
+    }
+
     setStatus("Загружаю на YouTube…");
     try {
       const { videoId } = await window.api.video.uploadToYoutube({
-        accountId,
+        accountId: account.id,
         filePath,
         title,
         privacyStatus,
@@ -141,6 +173,9 @@ export function App() {
         <h2>Аккаунты</h2>
         <button onClick={connectYoutube} disabled={connecting}>
           {connecting ? "Подключаю…" : "Подключить YouTube"}
+        </button>{" "}
+        <button onClick={connectTiktok} disabled={connecting}>
+          {connecting ? "Подключаю…" : "Подключить TikTok"}
         </button>
         <ul style={{ listStyle: "none", paddingLeft: 0 }}>
           {accounts.map((a) => (

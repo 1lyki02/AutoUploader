@@ -22,12 +22,19 @@ export interface UploadYoutubeParams {
   privacyStatus?: "private" | "unlisted" | "public";
 }
 
+export interface PrepareTiktokUploadParams {
+  accountId: string;
+  filePath: string;
+  caption?: string;
+}
+
 declare global {
   interface Window {
     api: {
       ping: () => Promise<string>;
       accounts: {
         connectYoutube: (label: string) => Promise<{ id: string; label: string }>;
+        connectTiktok: (label: string) => Promise<{ id: string; label: string }>;
         list: () => Promise<AccountSummary[]>;
         delete: (accountId: string) => Promise<void>;
         updateProxy: (accountId: string, proxy: ProxyConfig | null) => Promise<void>;
@@ -35,6 +42,7 @@ declare global {
       video: {
         pickFile: () => Promise<string | null>;
         uploadToYoutube: (params: UploadYoutubeParams) => Promise<{ videoId: string }>;
+        prepareTiktokUpload: (params: PrepareTiktokUploadParams) => Promise<void>;
       };
     };
   }

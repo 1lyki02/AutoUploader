@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("api", {
   accounts: {
     connectYoutube: (label: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.connectYoutubeAccount, label),
+    connectTiktok: (label: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.connectTiktokAccount, label),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.listAccounts),
     delete: (accountId: string) => ipcRenderer.invoke(IPC_CHANNELS.deleteAccount, accountId),
     updateProxy: (
@@ -22,5 +24,7 @@ contextBridge.exposeInMainWorld("api", {
       description?: string;
       privacyStatus?: "private" | "unlisted" | "public";
     }) => ipcRenderer.invoke(IPC_CHANNELS.uploadToYoutube, params),
+    prepareTiktokUpload: (params: { accountId: string; filePath: string; caption?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.prepareTiktokUpload, params),
   },
 });
