@@ -28,6 +28,11 @@ export async function runYouTubeLoginFlow(
   openUrl: (url: string) => void | Promise<void>,
 ): Promise<YouTubeTokens> {
   return new Promise((resolve, reject) => {
+    // Captured once the server starts listening — server.address() returns
+    // null after server.close(), so the redirect URI must not be recomputed
+    // from it inside the request handler (which closes the server first).
+    let redirectUri = "";
+
     const server = http.createServer((req, res) => {
       void (async () => {
         try {
@@ -37,6 +42,7 @@ export async function runYouTubeLoginFlow(
           const error = url.searchParams.get("error");
 
           if (error) {
+            res.setHeader("Content-Type", "text/html; charset=utf-8");
             res.end("Авторизация отклонена. Можно закрыть эту вкладку.");
             server.close();
             reject(new Error(`OAuth error: ${error}`));
@@ -44,11 +50,10 @@ export async function runYouTubeLoginFlow(
           }
           if (!code) return;
 
+          res.setHeader("Content-Type", "text/html; charset=utf-8");
           res.end("Аккаунт подключён. Можно закрыть эту вкладку.");
           server.close();
 
-          const port = (server.address() as { port: number }).port;
-          const redirectUri = `http://127.0.0.1:${port}`;
           const client = new OAuth2Client(creds.clientId, creds.clientSecret, redirectUri);
           const { tokens } = await client.getToken(code);
 
@@ -76,7 +81,7 @@ export async function runYouTubeLoginFlow(
     server.listen(0, "127.0.0.1", () => {
       void (async () => {
         const port = (server.address() as { port: number }).port;
-        const redirectUri = `http://127.0.0.1:${port}`;
+        redirectUri = `http://127.0.0.1:${port}`;
         const client = new OAuth2Client(creds.clientId, creds.clientSecret, redirectUri);
         const authUrl = client.generateAuthUrl({
           access_type: "offline",
