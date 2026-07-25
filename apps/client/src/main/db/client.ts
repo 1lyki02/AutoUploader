@@ -22,6 +22,32 @@ export function getDb(): ReturnType<typeof drizzle<typeof schema>> {
       proxy TEXT,
       created_at INTEGER NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS videos (
+      id TEXT PRIMARY KEY,
+      file_path TEXT NOT NULL,
+      title TEXT,
+      added_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS jobs (
+      id TEXT PRIMARY KEY,
+      account_id TEXT NOT NULL,
+      video_id TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      scheduled_at INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      transform_params TEXT,
+      executed_by TEXT,
+      created_at INTEGER NOT NULL
+    );
+
+    CREATE TABLE IF NOT EXISTS settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
   `);
 
   dbInstance = drizzle(sqlite, { schema });

@@ -1,10 +1,16 @@
 export {};
 
+export interface ProxyConfig {
+  server: string;
+  username?: string;
+  password?: string;
+}
+
 export interface AccountSummary {
   id: string;
   platform: string;
   label: string;
-  proxy: string | null;
+  proxy: ProxyConfig | null;
   createdAt: string;
 }
 
@@ -23,6 +29,8 @@ declare global {
       accounts: {
         connectYoutube: (label: string) => Promise<{ id: string; label: string }>;
         list: () => Promise<AccountSummary[]>;
+        delete: (accountId: string) => Promise<void>;
+        updateProxy: (accountId: string, proxy: ProxyConfig | null) => Promise<void>;
       };
       video: {
         pickFile: () => Promise<string | null>;
