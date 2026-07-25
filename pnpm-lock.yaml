@@ -31,6 +31,9 @@ importers:
       googleapis:
         specifier: ^144.0.0
         version: 144.0.0(encoding@0.1.13)(supports-color@7.2.0)
+      patchright:
+        specifier: ^1.49.0
+        version: 1.61.1
       react:
         specifier: ^19.0.0
         version: 19.2.8
@@ -108,6 +111,9 @@ importers:
       googleapis:
         specifier: ^144.0.0
         version: 144.0.0(encoding@0.1.13)(supports-color@7.2.0)
+      patchright:
+        specifier: ^1.49.0
+        version: 1.61.1
     devDependencies:
       '@types/node':
         specifier: ^22.10.2
@@ -1836,6 +1842,11 @@ packages:
   fs.realpath@1.0.0:
     resolution: {integrity: sha512-OO0pH2lK6a0hZnAdau5ItzHPI6pUlvI7jMVnxUQRtw4owF2wk8lOSabtGDCTP4Ggrg2MbGnWO9X8K1t4+fGMDw==}
 
+  fsevents@2.3.2:
+    resolution: {integrity: sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==}
+    engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
+    os: [darwin]
+
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
     engines: {node: ^8.16.0 || ^10.6.0 || >=11.0.0}
@@ -2380,6 +2391,16 @@ packages:
 
   package-json-from-dist@1.0.1:
     resolution: {integrity: sha512-UEZIS3/by4OC8vL3P2dTXRETpebLI2NiI5vIrjaD/5UtrkFX/tNbwjTSRAGC/+7CAo2pIcBaRgWmcBBHcsaCIw==}
+
+  patchright-core@1.61.1:
+    resolution: {integrity: sha512-d6Ju67DE6OzqlEX3WPvUX2SLEs6iMY1WERit//mpsrT98VHcztaUo0CBw2Lpxq25VdufVEiWEdcc0HnLwdiq6A==}
+    engines: {node: '>=18'}
+    hasBin: true
+
+  patchright@1.61.1:
+    resolution: {integrity: sha512-kZWNZ2tunsBMTBWtARFVWaNvB739GOybTlIPLT91eyx0YERjtUjESawomwO0hnOh6jt1L3Sru0PK62ylYOfqQw==}
+    engines: {node: '>=18'}
+    hasBin: true
 
   path-is-absolute@1.0.1:
     resolution: {integrity: sha512-AVbw3UJ2e9bq64vSaS9Am0fje1Pa8pbGqTTsmXfaIiMpnr5DlDhfJOuLj9Sf95ZPVDAUerDfEk88MPmPe7UCQg==}
@@ -4580,6 +4601,9 @@ snapshots:
 
   fs.realpath@1.0.0: {}
 
+  fsevents@2.3.2:
+    optional: true
+
   fsevents@2.3.3:
     optional: true
 
@@ -5185,6 +5209,14 @@ snapshots:
       aggregate-error: 3.1.0
 
   package-json-from-dist@1.0.1: {}
+
+  patchright-core@1.61.1: {}
+
+  patchright@1.61.1:
+    dependencies:
+      patchright-core: 1.61.1
+    optionalDependencies:
+      fsevents: 2.3.2
 
   path-is-absolute@1.0.1: {}
 
