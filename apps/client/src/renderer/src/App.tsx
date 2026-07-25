@@ -1,5 +1,77 @@
 import { useEffect, useState } from "react";
-import type { AccountSummary } from "./env.d.ts";
+import type { AccountSummary, ProxyConfig } from "./env.d.ts";
+
+function AccountRow({
+  account,
+  onChanged,
+  onUpload,
+  uploading,
+}: {
+  account: AccountSummary;
+  onChanged: () => void;
+  onUpload: (accountId: string) => void;
+  uploading: boolean;
+}) {
+  const [server, setServer] = useState(account.proxy?.server ?? "");
+  const [username, setUsername] = useState(account.proxy?.username ?? "");
+  const [password, setPassword] = useState(account.proxy?.password ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const saveProxy = async () => {
+    setSaving(true);
+    try {
+      const proxy: ProxyConfig | null = server.trim()
+        ? { server: server.trim(), username: username || undefined, password: password || undefined }
+        : null;
+      await window.api.accounts.updateProxy(account.id, proxy);
+      onChanged();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    await window.api.accounts.delete(account.id);
+    onChanged();
+  };
+
+  return (
+    <li style={{ marginTop: 12, borderTop: "1px solid #ddd", paddingTop: 8 }}>
+      <div>
+        [{account.platform}] {account.label}{" "}
+        <button onClick={() => onUpload(account.id)} disabled={uploading}>
+          {uploading ? "Загружаю…" : "Загрузить видео сюда"}
+        </button>{" "}
+        <button onClick={remove}>Удалить</button>
+      </div>
+      <div style={{ marginTop: 4, fontSize: 14 }}>
+        Прокси:{" "}
+        <input
+          placeholder="host:port"
+          value={server}
+          onChange={(e) => setServer(e.target.value)}
+          style={{ width: 140 }}
+        />{" "}
+        <input
+          placeholder="логин (опц.)"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          style={{ width: 100 }}
+        />{" "}
+        <input
+          placeholder="пароль (опц.)"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          style={{ width: 100 }}
+        />{" "}
+        <button onClick={saveProxy} disabled={saving}>
+          Сохранить
+        </button>
+      </div>
+    </li>
+  );
+}
 
 export function App() {
   const [accounts, setAccounts] = useState<AccountSummary[]>([]);
@@ -70,14 +142,15 @@ export function App() {
         <button onClick={connectYoutube} disabled={connecting}>
           {connecting ? "Подключаю…" : "Подключить YouTube"}
         </button>
-        <ul>
+        <ul style={{ listStyle: "none", paddingLeft: 0 }}>
           {accounts.map((a) => (
-            <li key={a.id} style={{ marginTop: 8 }}>
-              [{a.platform}] {a.label}{" "}
-              <button onClick={() => upload(a.id)} disabled={uploadingId === a.id}>
-                {uploadingId === a.id ? "Загружаю…" : "Загрузить видео сюда"}
-              </button>
-            </li>
+            <AccountRow
+              key={a.id}
+              account={a}
+              onChanged={refreshAccounts}
+              onUpload={upload}
+              uploading={uploadingId === a.id}
+            />
           ))}
         </ul>
       </section>

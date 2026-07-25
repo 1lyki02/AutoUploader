@@ -7,6 +7,11 @@ contextBridge.exposeInMainWorld("api", {
     connectYoutube: (label: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.connectYoutubeAccount, label),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.listAccounts),
+    delete: (accountId: string) => ipcRenderer.invoke(IPC_CHANNELS.deleteAccount, accountId),
+    updateProxy: (
+      accountId: string,
+      proxy: { server: string; username?: string; password?: string } | null,
+    ) => ipcRenderer.invoke(IPC_CHANNELS.updateAccountProxy, accountId, proxy),
   },
   video: {
     pickFile: () => ipcRenderer.invoke(IPC_CHANNELS.pickVideoFile),
