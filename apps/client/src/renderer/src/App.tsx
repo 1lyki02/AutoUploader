@@ -7,6 +7,9 @@ export function App() {
   const [status, setStatus] = useState<string>("");
   const [filePath, setFilePath] = useState<string | null>(null);
   const [title, setTitle] = useState("Тестовое видео");
+  const [privacyStatus, setPrivacyStatus] = useState<"private" | "unlisted" | "public">(
+    "private",
+  );
   const [uploadingId, setUploadingId] = useState<string | null>(null);
 
   const refreshAccounts = () => {
@@ -48,6 +51,7 @@ export function App() {
         accountId,
         filePath,
         title,
+        privacyStatus,
       });
       setStatus(`Загружено: https://youtube.com/watch?v=${videoId}`);
     } catch (err) {
@@ -85,6 +89,18 @@ export function App() {
         <label>
           Заголовок:{" "}
           <input value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <br />
+        <label>
+          Приватность:{" "}
+          <select
+            value={privacyStatus}
+            onChange={(e) => setPrivacyStatus(e.target.value as typeof privacyStatus)}
+          >
+            <option value="private">Приватное (рекомендуется для теста)</option>
+            <option value="unlisted">По ссылке</option>
+            <option value="public">Публичное</option>
+          </select>
         </label>
       </section>
 
