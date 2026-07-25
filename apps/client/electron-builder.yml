@@ -1,0 +1,9 @@
+appId: com.autouploader.app
+productName: AutoUploader
+directories:
+  output: release
+files:
+  - dist/**
+  - dist-electron/**
+win:
+  target: nsis
