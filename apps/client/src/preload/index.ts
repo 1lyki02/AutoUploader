@@ -24,7 +24,7 @@ contextBridge.exposeInMainWorld("api", {
       description?: string;
       privacyStatus?: "private" | "unlisted" | "public";
     }) => ipcRenderer.invoke(IPC_CHANNELS.uploadToYoutube, params),
-    prepareTiktokUpload: (params: { accountId: string; filePath: string; caption?: string }) =>
-      ipcRenderer.invoke(IPC_CHANNELS.prepareTiktokUpload, params),
+    uploadToTiktok: (params: { accountId: string; filePath: string; caption?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.uploadToTiktok, params),
   },
 });

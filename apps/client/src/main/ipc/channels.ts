@@ -7,5 +7,5 @@ export const IPC_CHANNELS = {
   updateAccountProxy: "accounts:update-proxy",
   pickVideoFile: "video:pick",
   uploadToYoutube: "video:upload-youtube",
-  prepareTiktokUpload: "video:prepare-tiktok",
+  uploadToTiktok: "video:upload-tiktok",
 } as const;
