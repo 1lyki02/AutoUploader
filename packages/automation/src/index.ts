@@ -4,3 +4,6 @@ export * from "./browser-pool.js";
 export * from "./tiktok/login.js";
 export * from "./tiktok/upload.js";
 export * from "./tiktok/selectors.js";
+export * from "./instagram/login.js";
+export * from "./instagram/upload.js";
+export * from "./instagram/selectors.js";

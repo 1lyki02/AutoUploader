@@ -120,6 +120,22 @@ export function App() {
     }
   };
 
+  const connectInstagram = async () => {
+    setConnecting(true);
+    setStatus(
+      "Открылось окно Instagram — войди вручную (логин, 2FA, checkpoint). После входа на главную сессия сохранится (до 5 минут)…",
+    );
+    try {
+      await window.api.accounts.connectInstagram("Instagram Reels");
+      setStatus("Аккаунт подключён.");
+      refreshAccounts();
+    } catch (err) {
+      setStatus(`Ошибка подключения: ${(err as Error).message}`);
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   const pickFile = async () => {
     const path = await window.api.video.pickFile();
     setFilePath(path);
@@ -143,6 +159,23 @@ export function App() {
         setStatus("Опубликовано в TikTok.");
       } catch (err) {
         setStatus(`Ошибка загрузки в TikTok: ${(err as Error).message}`);
+      } finally {
+        setUploadingId(null);
+      }
+      return;
+    }
+
+    if (account.platform === "instagram") {
+      setStatus("Публикую в Instagram Reels через браузер (как в рабочем Selenium-скрипте)…");
+      try {
+        await window.api.video.uploadToInstagram({
+          accountId: account.id,
+          filePath,
+          caption: title,
+        });
+        setStatus("Опубликовано в Instagram Reels.");
+      } catch (err) {
+        setStatus(`Ошибка загрузки в Instagram: ${(err as Error).message}`);
       } finally {
         setUploadingId(null);
       }
@@ -176,6 +209,9 @@ export function App() {
         </button>{" "}
         <button onClick={connectTiktok} disabled={connecting}>
           {connecting ? "Подключаю…" : "Подключить TikTok"}
+        </button>{" "}
+        <button onClick={connectInstagram} disabled={connecting}>
+          {connecting ? "Подключаю…" : "Подключить Instagram Reels"}
         </button>
         <ul style={{ listStyle: "none", paddingLeft: 0 }}>
           {accounts.map((a) => (
