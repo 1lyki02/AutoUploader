@@ -10,3 +10,10 @@ release/
 *.db-journal
 .turbo/
 out/
+__pycache__/
+*.pyc
+.vscode/
+
+# Scratch files from local experiments
+temp_*
+temp-*/
