@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { ipcMain, shell } from "electron";
 import { eq } from "drizzle-orm";
-import { runYouTubeLoginFlow, runTikTokLoginFlow } from "@autouploader/automation";
+import { runYouTubeLoginFlow, runTikTokLoginFlow, runInstagramLoginFlow } from "@autouploader/automation";
 import { ProxyConfigSchema, type ProxyConfig } from "@autouploader/shared";
 import { getYoutubeOAuthCredentials } from "../../config/youtube.js";
+import { getInstagramProxyFromEnv } from "../../config/instagram.js";
 import { getDb } from "../../db/client.js";
 import { accounts, type AccountRow } from "../../db/schema.js";
 import { encryptJson } from "../../secrets/vault.js";
@@ -62,6 +63,26 @@ export function registerAccountsHandlers(): void {
         label,
         credentials: encryptJson({ storageState }),
         proxy: null,
+        createdAt: new Date(),
+      })
+      .run();
+
+    return { id, label };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.connectInstagramAccount, async (_event, label: string) => {
+    const { storageState } = await runInstagramLoginFlow();
+    const proxy = getInstagramProxyFromEnv();
+
+    const db = getDb();
+    const id = randomUUID();
+    db.insert(accounts)
+      .values({
+        id,
+        platform: "instagram",
+        label,
+        credentials: encryptJson({ storageState }),
+        proxy: proxy ? JSON.stringify(proxy) : null,
         createdAt: new Date(),
       })
       .run();

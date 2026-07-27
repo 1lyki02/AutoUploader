@@ -8,6 +8,8 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke(IPC_CHANNELS.connectYoutubeAccount, label),
     connectTiktok: (label: string) =>
       ipcRenderer.invoke(IPC_CHANNELS.connectTiktokAccount, label),
+    connectInstagram: (label: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.connectInstagramAccount, label),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.listAccounts),
     delete: (accountId: string) => ipcRenderer.invoke(IPC_CHANNELS.deleteAccount, accountId),
     updateProxy: (
@@ -26,5 +28,7 @@ contextBridge.exposeInMainWorld("api", {
     }) => ipcRenderer.invoke(IPC_CHANNELS.uploadToYoutube, params),
     uploadToTiktok: (params: { accountId: string; filePath: string; caption?: string }) =>
       ipcRenderer.invoke(IPC_CHANNELS.uploadToTiktok, params),
+    uploadToInstagram: (params: { accountId: string; filePath: string; caption?: string }) =>
+      ipcRenderer.invoke(IPC_CHANNELS.uploadToInstagram, params),
   },
 });

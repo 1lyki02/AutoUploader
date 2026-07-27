@@ -4,9 +4,11 @@ import {
   refreshYouTubeAccessToken,
   uploadYouTubeShort,
   uploadToTikTok,
+  uploadToInstagram,
 } from "@autouploader/automation";
 import type { ProxyConfig } from "@autouploader/shared";
 import { getYoutubeOAuthCredentials } from "../../config/youtube.js";
+import { getInstagramProxyFromEnv } from "../../config/instagram.js";
 import { getDb } from "../../db/client.js";
 import { accounts } from "../../db/schema.js";
 import { decryptJson } from "../../secrets/vault.js";
@@ -24,6 +26,19 @@ export interface UploadTiktokParams {
   accountId: string;
   filePath: string;
   caption?: string;
+}
+
+export interface UploadInstagramParams {
+  accountId: string;
+  filePath: string;
+  caption?: string;
+}
+
+function resolveInstagramProxy(rowProxy: string | null): ProxyConfig | undefined {
+  if (rowProxy) {
+    return JSON.parse(rowProxy) as ProxyConfig;
+  }
+  return getInstagramProxyFromEnv();
 }
 
 export function registerVideoHandlers(): void {
@@ -74,6 +89,33 @@ export function registerVideoHandlers(): void {
     await uploadToTikTok({
       accountId: params.accountId,
       storageState,
+      proxy,
+      filePath: params.filePath,
+      caption: params.caption,
+    });
+  });
+
+  ipcMain.handle(IPC_CHANNELS.uploadToInstagram, async (_event, params: UploadInstagramParams) => {
+    const db = getDb();
+    const row = db.select().from(accounts).where(eq(accounts.id, params.accountId)).get();
+    if (!row) {
+      throw new Error("Аккаунт не найден");
+    }
+
+    const credentials = decryptJson<{ storageState?: object; username?: string; password?: string }>(
+      row.credentials,
+    );
+    if (!credentials.storageState) {
+      throw new Error(
+        "Этот Instagram-аккаунт сохранён в старом формате (логин/пароль). Удалите его и подключите заново — откроется браузер для ручного входа.",
+      );
+    }
+
+    const proxy = resolveInstagramProxy(row.proxy);
+
+    await uploadToInstagram({
+      accountId: params.accountId,
+      storageState: credentials.storageState,
       proxy,
       filePath: params.filePath,
       caption: params.caption,

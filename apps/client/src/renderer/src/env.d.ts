@@ -28,6 +28,12 @@ export interface UploadTiktokParams {
   caption?: string;
 }
 
+export interface UploadInstagramParams {
+  accountId: string;
+  filePath: string;
+  caption?: string;
+}
+
 declare global {
   interface Window {
     api: {
@@ -35,6 +41,7 @@ declare global {
       accounts: {
         connectYoutube: (label: string) => Promise<{ id: string; label: string }>;
         connectTiktok: (label: string) => Promise<{ id: string; label: string }>;
+        connectInstagram: (label: string) => Promise<{ id: string; label: string }>;
         list: () => Promise<AccountSummary[]>;
         delete: (accountId: string) => Promise<void>;
         updateProxy: (accountId: string, proxy: ProxyConfig | null) => Promise<void>;
@@ -43,6 +50,7 @@ declare global {
         pickFile: () => Promise<string | null>;
         uploadToYoutube: (params: UploadYoutubeParams) => Promise<{ videoId: string }>;
         uploadToTiktok: (params: UploadTiktokParams) => Promise<void>;
+        uploadToInstagram: (params: UploadInstagramParams) => Promise<void>;
       };
     };
   }
