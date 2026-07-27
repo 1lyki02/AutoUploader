@@ -28,14 +28,42 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
     },
     async (context) => {
       const page = await context.newPage();
-      await page.goto(TIKTOK_SELECTORS.uploadPageUrl, { waitUntil: "networkidle" });
+      await page.goto(TIKTOK_SELECTORS.uploadPageUrl, {
+        waitUntil: "domcontentloaded",
+        timeout: 120_000,
+      });
+
+      await page.waitForTimeout(2500);
+      if (page.url().includes("/login") || page.url().includes("/challenge")) {
+        throw new Error(
+          "TikTok session недействительна. Переподключите TikTok-аккаунт и попробуйте снова.",
+        );
+      }
 
       await page
         .getByRole("button", { name: TIKTOK_SELECTORS.cookieConsentButtonText })
         .click({ timeout: 3000 })
         .catch(() => {});
 
-      const fileInput = page.locator(TIKTOK_SELECTORS.fileInput).first();
+      let fileInput = page.locator(TIKTOK_SELECTORS.fileInput).first();
+      if ((await fileInput.count()) === 0) {
+        await page.goto(TIKTOK_SELECTORS.altUploadPageUrl, {
+          waitUntil: "domcontentloaded",
+          timeout: 120_000,
+        });
+        await page.waitForTimeout(2500);
+        fileInput = page.locator(TIKTOK_SELECTORS.fileInput).first();
+      }
+
+      await page.waitForSelector(TIKTOK_SELECTORS.fileInput, {
+        timeout: 120_000,
+        state: "attached",
+      });
+      if ((await fileInput.count()) === 0) {
+        throw new Error(
+          "Не удалось найти поле загрузки файла на TikTok. Возможно, структура страницы изменилась или аккаунт не вошёл в систему.",
+        );
+      }
       await fileInput.setInputFiles(params.filePath);
 
       // TikTok needs real time to process the upload before the rest of the form works.
@@ -57,10 +85,12 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
 
       if (params.caption) {
         const caption = page.locator(TIKTOK_SELECTORS.captionEditor).first();
-        await caption.click();
-        await page.keyboard.press("Control+A");
-        await page.keyboard.press("Delete");
-        await page.keyboard.type(params.caption, { delay: 20 });
+        if ((await caption.count()) > 0) {
+          await caption.click();
+          await page.keyboard.press("Control+A");
+          await page.keyboard.press("Delete");
+          await page.keyboard.type(params.caption, { delay: 20 });
+        }
       }
 
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
@@ -71,6 +101,13 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
           .getByRole("button", { name: TIKTOK_SELECTORS.postButtonFallbackText })
           .first();
       }
+
+      if ((await postButton.count()) === 0) {
+        throw new Error(
+          "Не удалось найти кнопку публикации на TikTok. Возможно, страница изменилась или необходима ручная проверка.",
+        );
+      }
+
       await postButton.scrollIntoViewIfNeeded();
       await postButton.click();
 
