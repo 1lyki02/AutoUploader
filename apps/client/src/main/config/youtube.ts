@@ -14,7 +14,7 @@ export function getYoutubeOAuthCredentials(): YoutubeOAuthEnvCredentials {
 
   if (!clientId || !clientSecret) {
     throw new Error(
-      "YOUTUBE_CLIENT_ID/YOUTUBE_CLIENT_SECRET не заданы — скопируй apps/client/.env.example в .env и заполни значениями из Google Cloud Console",
+      "YOUTUBE_CLIENT_ID/YOUTUBE_CLIENT_SECRET не заданы — скопируй apps/client/.env.example в apps/client/.env и заполни значениями из Google Cloud Console, затем перезапусти приложение",
     );
   }
 
