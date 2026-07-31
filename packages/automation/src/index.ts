@@ -7,3 +7,7 @@ export * from "./tiktok/selectors.js";
 export * from "./instagram/login.js";
 export * from "./instagram/upload.js";
 export * from "./instagram/selectors.js";
+export * from "./execute-platform-upload.js";
+export * from "./video-uniquify.js";
+export * from "./mute-media.js";
+export * from "./network-timing.js";

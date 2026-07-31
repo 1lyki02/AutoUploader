@@ -7,6 +7,8 @@ import { getYoutubeOAuthCredentials } from "../../config/youtube.js";
 import { getInstagramProxyFromEnv } from "../../config/instagram.js";
 import { getDb } from "../../db/client.js";
 import { accounts, type AccountRow } from "../../db/schema.js";
+import { syncAccountToServer } from "../../remote/account-sync.js";
+import { getServerApi } from "../../remote/server-api.js";
 import { encryptJson } from "../../secrets/vault.js";
 import { IPC_CHANNELS } from "../channels.js";
 
@@ -47,6 +49,8 @@ export function registerAccountsHandlers(): void {
         createdAt: new Date(),
       })
       .run();
+    const account = db.select().from(accounts).where(eq(accounts.id, id)).get();
+    if (account) await syncAccountToServer(account);
 
     return { id, label };
   });
@@ -66,13 +70,15 @@ export function registerAccountsHandlers(): void {
         createdAt: new Date(),
       })
       .run();
+    const account = db.select().from(accounts).where(eq(accounts.id, id)).get();
+    if (account) await syncAccountToServer(account);
 
     return { id, label };
   });
 
   ipcMain.handle(IPC_CHANNELS.connectInstagramAccount, async (_event, label: string) => {
-    const { storageState } = await runInstagramLoginFlow();
     const proxy = getInstagramProxyFromEnv();
+    const { storageState } = await runInstagramLoginFlow(proxy);
 
     const db = getDb();
     const id = randomUUID();
@@ -86,6 +92,8 @@ export function registerAccountsHandlers(): void {
         createdAt: new Date(),
       })
       .run();
+    const account = db.select().from(accounts).where(eq(accounts.id, id)).get();
+    if (account) await syncAccountToServer(account);
 
     return { id, label };
   });
@@ -98,6 +106,7 @@ export function registerAccountsHandlers(): void {
 
   ipcMain.handle(IPC_CHANNELS.deleteAccount, async (_event, accountId: string) => {
     const db = getDb();
+    await getServerApi()?.deleteAccount(accountId);
     db.delete(accounts).where(eq(accounts.id, accountId)).run();
   });
 
@@ -110,6 +119,8 @@ export function registerAccountsHandlers(): void {
         .set({ proxy: parsedProxy ? JSON.stringify(parsedProxy) : null })
         .where(eq(accounts.id, accountId))
         .run();
+      const account = db.select().from(accounts).where(eq(accounts.id, accountId)).get();
+      if (account) await syncAccountToServer(account);
     },
   );
 }

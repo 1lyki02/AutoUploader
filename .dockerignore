@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+**/dist
+**/dist-electron
+**/release*
+**/.env
+.git
+.cursor
+*.db
+*.log

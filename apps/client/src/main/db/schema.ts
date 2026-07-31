@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, blob } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, blob, index } from "drizzle-orm/sqlite-core";
 
 /**
  * `credentials` holds an encrypted (Electron safeStorage) JSON blob whose shape depends
@@ -21,6 +21,8 @@ export const videos = sqliteTable("videos", {
   id: text("id").primaryKey(),
   filePath: text("file_path").notNull(),
   title: text("title"),
+  description: text("description"),
+  privacyStatus: text("privacy_status").notNull().default("private"),
   addedAt: integer("added_at", { mode: "timestamp" }).notNull(),
 });
 
@@ -33,19 +35,26 @@ export type NewVideoRow = typeof videos.$inferInsert;
  * anti-duplicate pipeline (Phase 5) exists. `executedBy` distinguishes a client-run
  * upload from a server fallback run (Phase 7).
  */
-export const jobs = sqliteTable("jobs", {
-  id: text("id").primaryKey(),
-  accountId: text("account_id").notNull(),
-  videoId: text("video_id").notNull(),
-  platform: text("platform").notNull(),
-  scheduledAt: integer("scheduled_at", { mode: "timestamp" }).notNull(),
-  status: text("status").notNull().default("pending"),
-  attempts: integer("attempts").notNull().default(0),
-  lastError: text("last_error"),
-  transformParams: text("transform_params"),
-  executedBy: text("executed_by"),
-  createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
-});
+export const jobs = sqliteTable(
+  "jobs",
+  {
+    id: text("id").primaryKey(),
+    accountId: text("account_id").notNull(),
+    videoId: text("video_id").notNull(),
+    platform: text("platform").notNull(),
+    scheduledAt: integer("scheduled_at", { mode: "timestamp" }).notNull(),
+    status: text("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    transformParams: text("transform_params"),
+    executedBy: text("executed_by"),
+    createdAt: integer("created_at", { mode: "timestamp" }).notNull(),
+    updatedAt: integer("updated_at", { mode: "timestamp" }),
+  },
+  (table) => ({
+    queueIndex: index("jobs_status_scheduled_idx").on(table.status, table.scheduledAt),
+  }),
+);
 
 export type JobRow = typeof jobs.$inferSelect;
 export type NewJobRow = typeof jobs.$inferInsert;

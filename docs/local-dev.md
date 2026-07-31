@@ -6,13 +6,12 @@
 
 ```bash
 pnpm install
-```
-
-Нужны Node ≥ 22 и pnpm. Для TikTok/Instagram browser automation один раз:
-
-```bash
 pnpm --filter @autouploader/automation install-browsers
 ```
+
+Нужны Node ≥ 22 и pnpm. `install-browsers` ставит Chromium (TikTok) и **Camoufox** (антидетект Firefox для Instagram, ~500 MB).
+
+Если `camoufox-js fetch` упадёт на GeoIP/MaxMind — это не критично: сам браузер уже скачан, Instagram работает без GeoIP.
 
 ## 2. Env
 
@@ -20,12 +19,10 @@ pnpm --filter @autouploader/automation install-browsers
 copy apps\client\.env.example apps\client\.env
 ```
 
-Заполни в `apps/client/.env`:
+Заполни:
 
-- `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` — см. [youtube-api-setup.md](./youtube-api-setup.md)
-- опционально `INSTAGRAM_PROXY_*` — прокси по умолчанию при подключении Instagram
-
-Instagram **не** использует логин/пароль из `.env`: вход вручную в открывшемся браузере (как TikTok).
+- `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET`
+- опционально `INSTAGRAM_PROXY_*`
 
 ## 3. Запуск
 
@@ -33,11 +30,11 @@ Instagram **не** использует логин/пароль из `.env`: в�
 pnpm dev:client
 ```
 
-## Instagram (браузер, как рабочий Selenium-скрипт)
+## Instagram (Camoufox anti-detect)
 
-1. «Подключить Instagram Reels» → откроется Chrome/Chromium.
-2. Войди вручную (пароль, 2FA, checkpoint — всё в браузере).
-3. После появления `sessionid` сессия сохранится.
-4. «Загрузить видео» → UI-автоматизация Reels: Создать → файл → Далее ×2 → описание → Поделиться.
+1. «Подключить Instagram Reels» → откроется **Camoufox** на `instagram.com`.
+2. Войди вручную.
+3. После `sessionid` сессия сохранится.
+4. «Загрузить видео» — UI-автоматизация Reels в том же Camoufox.
 
-Старые аккаунты, сохранённые через instagrapi (логин/пароль), нужно удалить и подключить заново.
+Старые аккаунты (instagrapi / обычный Chromium) удали и подключи заново.

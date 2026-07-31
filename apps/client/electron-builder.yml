@@ -1,9 +1,61 @@
 appId: com.autouploader.app
-productName: AutoUploader
+productName: ROAD
 directories:
   output: release
+  buildResources: build
+afterPack: ./scripts/after-pack.mjs
+publish:
+  provider: github
+  owner: 1lyki02
+  repo: AutoUploader
+  releaseType: release
 files:
   - dist/**
   - dist-electron/**
+  - build/icon.png
+extraResources:
+  - from: build/icon.png
+    to: icon.png
+  - from: license.config.json
+    to: license.config.json
+  - from: build/instagram-worker
+    to: instagram-worker
+  # Keep the direct v11 dependency and its Electron-rebuilt binary separate
+  # from camoufox-js's hoisted v13 dependency.
+  - from: node_modules/better-sqlite3
+    to: vendor/better-sqlite3
+  - from: ../../node_modules/.pnpm/bindings@1.5.0/node_modules/bindings
+    to: vendor/node_modules/bindings
+  - from: ../../node_modules/.pnpm/file-uri-to-path@1.0.0/node_modules/file-uri-to-path
+    to: vendor/node_modules/file-uri-to-path
+# Avoid rebuilding camoufox-js's better-sqlite3 for Electron (breaks on Node 24 / distutils).
+npmRebuild: false
 win:
   target: nsis
+  icon: icon.ico
+  # Local unsigned builds should not require Windows Developer Mode for winCodeSign symlinks.
+  signAndEditExecutable: false
+  extraResources:
+    - from: build/icon.ico
+      to: icon.ico
+    - from: ../../packages/automation/vendor/ffmpeg.exe
+      to: ffmpeg/ffmpeg.exe
+mac:
+  target:
+    - dmg
+    - zip
+  icon: icon.png
+  category: public.app-category.productivity
+  identity: null
+  gatekeeperAssess: false
+  hardenedRuntime: false
+  extraResources:
+    - from: ../../packages/automation/vendor/ffmpeg
+      to: ffmpeg/ffmpeg
+linux:
+  target:
+    - AppImage
+  icon: icon.png
+  extraResources:
+    - from: ../../packages/automation/vendor/ffmpeg
+      to: ffmpeg/ffmpeg

@@ -1,4 +1,4 @@
-import { chromium } from "patchright";
+import { launchAutomationBrowser } from "../browser-pool.js";
 import { TIKTOK_SELECTORS } from "./selectors.js";
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
@@ -11,7 +11,7 @@ const POLL_INTERVAL_MS = 2000;
  * storageState (cookies + localStorage) for headless reuse afterward.
  */
 export async function runTikTokLoginFlow(): Promise<{ storageState: object }> {
-  const browser = await chromium.launch({ headless: false });
+  const browser = await launchAutomationBrowser(false);
   try {
     const context = await browser.newContext();
     const page = await context.newPage();

@@ -4,7 +4,14 @@
   "version": "0.0.0",
   "scripts": {
     "dev:client": "pnpm --filter @autouploader/client dev",
+    "dev:admin": "pnpm --filter @autouploader/admin dev",
+    "dev:telegram-admin": "pnpm --filter @autouploader/telegram-admin dev",
+    "start:telegram-admin": "pnpm --filter @autouploader/telegram-admin start",
+    "build:telegram-admin": "pnpm --filter @autouploader/telegram-admin build",
     "dev:server": "pnpm --filter @autouploader/server dev",
+    "build:admin": "pnpm --filter @autouploader/admin build",
+    "package:admin": "pnpm --filter @autouploader/admin package",
+    "license:keys": "node scripts/generate-license-keys.mjs",
     "build": "pnpm -r build",
     "typecheck": "pnpm -r typecheck"
   },

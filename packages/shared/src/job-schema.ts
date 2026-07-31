@@ -7,6 +7,8 @@ export const JobStatusSchema = z.enum([
   "done",
   "failed",
   "missed",
+  "needs_review",
+  "reauth_required",
 ]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;
 
@@ -43,3 +45,48 @@ export const JobSchema = z.object({
   executedBy: z.enum(["client", "server"]).nullable().optional(),
 });
 export type Job = z.infer<typeof JobSchema>;
+
+export const PrivacyStatusSchema = z.enum(["private", "unlisted", "public"]);
+export type PrivacyStatus = z.infer<typeof PrivacyStatusSchema>;
+
+export const BatchVideoInputSchema = z.object({
+  filePath: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().optional(),
+  privacyStatus: PrivacyStatusSchema.default("private"),
+});
+export type BatchVideoInput = z.infer<typeof BatchVideoInputSchema>;
+
+export const CreateUploadBatchSchema = z.object({
+  accountIds: z.array(z.string().min(1)).min(1),
+  videos: z.array(BatchVideoInputSchema).min(1),
+  scheduledAt: z.string().datetime().optional(),
+});
+export type CreateUploadBatch = z.infer<typeof CreateUploadBatchSchema>;
+
+export const UploadJobSummarySchema = z.object({
+  id: z.string(),
+  accountId: z.string(),
+  accountLabel: z.string(),
+  platform: PlatformSchema,
+  videoId: z.string(),
+  filePath: z.string(),
+  title: z.string(),
+  status: JobStatusSchema,
+  attempts: z.number().int().nonnegative(),
+  lastError: z.string().nullable(),
+  scheduledAt: z.string().datetime(),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type UploadJobSummary = z.infer<typeof UploadJobSummarySchema>;
+
+export const UploadTransferProgressSchema = z.object({
+  fileName: z.string(),
+  fileIndex: z.number().int().nonnegative(),
+  fileCount: z.number().int().positive(),
+  uploadedBytes: z.number().nonnegative(),
+  totalBytes: z.number().positive(),
+  percent: z.number().min(0).max(100),
+});
+export type UploadTransferProgress = z.infer<typeof UploadTransferProgressSchema>;

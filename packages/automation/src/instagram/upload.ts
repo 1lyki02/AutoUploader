@@ -1,7 +1,12 @@
-import type { Page } from "patchright";
+import type { Page } from "playwright-core";
 import type { ProxyConfig } from "@autouploader/shared";
-import { withAccountContext } from "../browser-pool.js";
+import { withInstagramCamoufoxContext } from "./camoufox-browser.js";
+import { mutePageMedia } from "../mute-media.js";
 import { INSTAGRAM_SELECTORS } from "./selectors.js";
+import {
+  runInstagramUploadViaSubprocess,
+  shouldUseInstagramSubprocess,
+} from "./subprocess.js";
 
 export interface UploadInstagramParams {
   accountId: string;
@@ -122,19 +127,30 @@ async function clickShare(page: Page): Promise<void> {
 }
 
 /**
- * Uploads and publishes an Instagram Reel via browser UI.
- * Flow ported from the working Selenium InstagramManual.upload_reels prototype.
+ * Uploads and publishes an Instagram Reel via Camoufox (anti-detect) UI automation.
  */
 export async function uploadToInstagram(params: UploadInstagramParams): Promise<void> {
-  await withAccountContext(
+  if (shouldUseInstagramSubprocess()) {
+    await runInstagramUploadViaSubprocess({
+      storageState: params.storageState,
+      filePath: params.filePath,
+      caption: params.caption,
+      proxy: params.proxy,
+      headless: params.headless ?? true,
+    });
+    return;
+  }
+
+  await withInstagramCamoufoxContext(
     params.accountId,
     {
-      headless: params.headless ?? false,
+      headless: params.headless ?? true,
       storageState: params.storageState,
       proxy: params.proxy,
     },
     async (context) => {
       const page = await context.newPage();
+      await mutePageMedia(page);
 
       await page.goto(INSTAGRAM_SELECTORS.reelsUrl, {
         waitUntil: "domcontentloaded",
@@ -164,7 +180,6 @@ export async function uploadToInstagram(params: UploadInstagramParams): Promise<
       }
       await fileInput.setInputFiles(params.filePath);
 
-      // Video processing — timings from the working Selenium flow.
       await page.waitForTimeout(15_000);
       await dismissSampleModal(page);
       await page.waitForTimeout(2000);

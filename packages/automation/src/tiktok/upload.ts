@@ -1,5 +1,7 @@
 import type { ProxyConfig } from "@autouploader/shared";
 import { withAccountContext } from "../browser-pool.js";
+import { measureNetworkTiming } from "../network-timing.js";
+import { mutePageMedia } from "../mute-media.js";
 import { TIKTOK_SELECTORS } from "./selectors.js";
 
 export interface UploadTikTokParams {
@@ -16,24 +18,32 @@ export interface UploadTikTokParams {
  * Uploads and publishes a video to TikTok end-to-end, including clicking Post.
  * Flow ported from a working Python/Selenium prototype (see PrepareTikTokUploadParams
  * history) — timings and fallback selectors below are copied from that proven flow,
- * not guessed.
+ * not guessed. Timeouts scale with measured network latency before the run starts.
  */
 export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> {
+  const timing = await measureNetworkTiming();
+
   await withAccountContext(
     params.accountId,
     {
-      headless: params.headless ?? false,
+      headless: params.headless ?? true,
       storageState: params.storageState,
       proxy: params.proxy,
     },
     async (context) => {
+      const navTimeout = timing.scaledMs(120_000);
+      const settleMs = timing.scaledMs(2500);
+      const uploadProcessingTimeout = timing.scaledMs(120_000);
+      const postClickTimeout = timing.scaledMs(60_000);
+
       const page = await context.newPage();
+      await mutePageMedia(page);
       await page.goto(TIKTOK_SELECTORS.uploadPageUrl, {
         waitUntil: "domcontentloaded",
-        timeout: 120_000,
+        timeout: navTimeout,
       });
 
-      await page.waitForTimeout(2500);
+      await page.waitForTimeout(settleMs);
       if (page.url().includes("/login") || page.url().includes("/challenge")) {
         throw new Error(
           "TikTok session недействительна. Переподключите TikTok-аккаунт и попробуйте снова.",
@@ -42,21 +52,21 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
 
       await page
         .getByRole("button", { name: TIKTOK_SELECTORS.cookieConsentButtonText })
-        .click({ timeout: 3000 })
+        .click({ timeout: timing.scaledMs(3000) })
         .catch(() => {});
 
       let fileInput = page.locator(TIKTOK_SELECTORS.fileInput).first();
       if ((await fileInput.count()) === 0) {
         await page.goto(TIKTOK_SELECTORS.altUploadPageUrl, {
           waitUntil: "domcontentloaded",
-          timeout: 120_000,
+          timeout: navTimeout,
         });
-        await page.waitForTimeout(2500);
+        await page.waitForTimeout(settleMs);
         fileInput = page.locator(TIKTOK_SELECTORS.fileInput).first();
       }
 
       await page.waitForSelector(TIKTOK_SELECTORS.fileInput, {
-        timeout: 120_000,
+        timeout: navTimeout,
         state: "attached",
       });
       if ((await fileInput.count()) === 0) {
@@ -66,12 +76,12 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
       }
       await fileInput.setInputFiles(params.filePath);
 
-      // TikTok needs real time to process the upload before the rest of the form works.
-      await page.waitForTimeout(35_000);
+      // Give TikTok time to start processing the upload before interacting with the form.
+      await page.waitForTimeout(timing.scaledMs(5000));
 
       await page
         .getByRole("button", { name: TIKTOK_SELECTORS.gotItButtonText })
-        .click({ timeout: 3000 })
+        .click({ timeout: timing.scaledMs(3000) })
         .catch(() => {});
 
       // Onboarding tooltips (react-joyride) can visually block clicks — strip them.
@@ -109,17 +119,38 @@ export async function uploadToTikTok(params: UploadTikTokParams): Promise<void> 
       }
 
       await postButton.scrollIntoViewIfNeeded();
-      await postButton.click();
+      try {
+        await page.waitForFunction(
+          () => {
+            const button = document.querySelector('[data-e2e="post_video_button"]');
+            if (!button) {
+              return false;
+            }
+            return (
+              button.getAttribute("aria-disabled") !== "true" &&
+              button.getAttribute("data-disabled") !== "true"
+            );
+          },
+          undefined,
+          { timeout: uploadProcessingTimeout },
+        );
+      } catch {
+        throw new Error(
+          `TikTok не завершил обработку видео за ${Math.round(uploadProcessingTimeout / 1000)} с ` +
+            `(задержка сети ~${Math.round(timing.latencyMs)} мс). Проверьте интернет и попробуйте снова.`,
+        );
+      }
+      await postButton.click({ timeout: postClickTimeout });
 
       // Second confirmation click if TikTok shows a modal (e.g. copyright notice).
       await page
         .locator(TIKTOK_SELECTORS.modalContainer)
         .getByRole("button", { name: TIKTOK_SELECTORS.modalPostButtonText })
         .first()
-        .click({ timeout: 5000 })
+        .click({ timeout: timing.scaledMs(5000) })
         .catch(() => {});
 
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(timing.scaledMs(5000));
     },
   );
 }
