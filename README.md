@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/1lyki02/AutoUploader/releases"><img src="https://img.shields.io/github/v/release/1lyki02/AutoUploader?label=версия&style=flat-square" alt="Release" /></a>
   <a href="https://github.com/1lyki02/AutoUploader/releases"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Platform" /></a>
-  <a href="https://t.me/road_support"><img src="https://img.shields.io/badge/Telegram-@road__support-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Support" /></a>
+  <a href="https://t.me/road_sup"><img src="https://img.shields.io/badge/Telegram-@road__support-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Support" /></a>
 </p>
 
 ---
