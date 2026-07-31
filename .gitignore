@@ -33,7 +33,9 @@ branding/
 supabase/
 supabase/.temp/
 
-# Icon build scratch (icon.ico is committed separately)
+# Duplicate icon removed from repo (use road-icon.png)
+apps/client/public/icon.png
+apps/client/src/renderer/public/
 apps/client/build/ico-tmp/
 apps/client/build/make-ico.cjs
 
