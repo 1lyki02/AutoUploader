@@ -2,9 +2,13 @@ node_modules/
 dist/
 dist-electron/
 release/
+apps/client/release*/
 *.log
 .env
 .env.local
+apps/client/license.config.json
+.cursor/
+supabase/.temp/
 .DS_Store
 *.db
 *.db-journal
@@ -13,6 +17,12 @@ out/
 __pycache__/
 *.pyc
 .vscode/
+
+# Vendored binaries (copied by packages/automation/scripts/ensure-ffmpeg.mjs)
+packages/automation/vendor/
+
+# Bundled Instagram worker runtime (apps/client/scripts/prepare-instagram-worker.mjs)
+apps/client/build/instagram-worker/
 
 # Scratch files from local experiments
 temp_*

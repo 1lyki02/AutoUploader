@@ -1,0 +1,7 @@
+project_id = "autouploader"
+
+[functions.license]
+verify_jwt = false
+
+[functions.license-admin]
+verify_jwt = false

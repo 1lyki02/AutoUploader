@@ -1,6 +1,7 @@
 import path from "node:path";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import electron from "vite-plugin-electron/simple";
 
 // Node-process code (main/preload) should never bundle third-party npm
@@ -16,6 +17,8 @@ function externalizeNodeModules(id: string): boolean {
 }
 
 export default defineConfig({
+  // Relative asset URLs are required for Electron loadFile() in production.
+  base: "./",
   // Some VPN/proxy setups intercept the "localhost" hostname but leave the
   // loopback IP alone — binding explicitly to 127.0.0.1 sidesteps that.
   server: {
@@ -23,6 +26,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    tailwindcss(),
     electron({
       main: {
         entry: "./src/main/index.ts",
@@ -51,5 +55,10 @@ export default defineConfig({
   ],
   build: {
     outDir: "dist",
+  },
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src/renderer/src"),
+    },
   },
 });
