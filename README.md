@@ -77,6 +77,17 @@
 - SMM-специалисты и небольшие агентства
 - те, кто публикует Shorts, Reels и TikTok на нескольких площадках
 
+## Разработка
+
+```bash
+pnpm install
+pnpm --filter @autouploader/automation install-browsers
+copy apps\client\.env.example apps\client\.env   # Windows
+pnpm dev:client
+```
+
+YouTube OAuth: создай Desktop OAuth client в Google Cloud и вставь `YOUTUBE_CLIENT_ID` / `YOUTUBE_CLIENT_SECRET` в `.env` или в настройках приложения.
+
 ## Репозиторий
 
 Публичная часть монорепозитория ROAD — desktop-клиент (Electron) и общие пакеты автоматизации.

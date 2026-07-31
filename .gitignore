@@ -8,8 +8,6 @@ apps/client/release*/
 .env.local
 apps/client/license.config.json
 .cursor/
-supabase/
-supabase/.temp/
 .DS_Store
 *.db
 *.db-journal
@@ -23,13 +21,24 @@ __pycache__/
 apps/admin/
 apps/server/
 apps/telegram-admin/
-scripts/generate-license-keys.mjs
-docs/manual-licenses.md
+scripts/
+docs/
 docker-compose.server.yml
 railway.json
 railway.toml
 .env.server.example
+.dockerignore
+.railwayignore
 branding/
+supabase/
+supabase/.temp/
+
+# Icon build scratch (icon.ico is committed separately)
+apps/client/build/ico-tmp/
+apps/client/build/make-ico.cjs
+
+# Dev-only automation scripts
+packages/automation/scripts/smoke-camoufox.mjs
 
 # Vendored binaries (copied by packages/automation/scripts/ensure-ffmpeg.mjs)
 packages/automation/vendor/
