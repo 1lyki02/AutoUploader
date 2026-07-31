@@ -1,4 +1,0 @@
-{$SERVER_DOMAIN} {
-  encode zstd gzip
-  reverse_proxy server:4000
-}

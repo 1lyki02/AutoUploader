@@ -12,7 +12,7 @@
 <p align="center">
   <a href="https://github.com/1lyki02/AutoUploader/releases"><img src="https://img.shields.io/github/v/release/1lyki02/AutoUploader?label=версия&style=flat-square" alt="Release" /></a>
   <a href="https://github.com/1lyki02/AutoUploader/releases"><img src="https://img.shields.io/badge/platform-Windows%20%7C%20macOS-0078D4?style=flat-square&logo=windows&logoColor=white" alt="Platform" /></a>
-  <a href="https://t.me/road_sup"><img src="https://img.shields.io/badge/Telegram-@road__support-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Support" /></a>
+  <a href="https://t.me/ROAD_sup"><img src="https://img.shields.io/badge/Telegram-@ROAD_sup-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Support" /></a>
 </p>
 
 ---
@@ -66,7 +66,7 @@
 
 | | |
 |---|---|
-| Telegram | [@road_support](https://t.me/road_support) |
+| Telegram | [@ROAD_sup](https://t.me/ROAD_sup) |
 | Email | [support@road.app](mailto:support@road.app) |
 
 По вопросам оплаты, продления подписки и сброса устройства — пишите в поддержку.
@@ -79,13 +79,13 @@
 
 ## Репозиторий
 
-Монорепозиторий продукта ROAD: desktop-клиент (Electron), сервер планировщика, лицензирование и админ-инструменты.
+Публичная часть монорепозитория ROAD — desktop-клиент (Electron) и общие пакеты автоматизации.
 
 | Компонент | Путь |
 |-----------|------|
 | Desktop-клиент | `apps/client` |
-| Сервер планировщика | `apps/server` |
-| Telegram-админка | `apps/telegram-admin` |
+| Автоматизация загрузок | `packages/automation` |
+| Общие типы и схемы | `packages/shared` |
 
 ---
 

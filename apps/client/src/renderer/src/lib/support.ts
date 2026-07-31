@@ -2,8 +2,8 @@
 export const SUPPORT_CONTACTS = {
   telegram: {
     label: "Telegram",
-    value: "@road_support",
-    href: "https://t.me/road_support",
+    value: "@ROAD_sup",
+    href: "https://t.me/ROAD_sup",
   },
   email: {
     label: "Email",

@@ -1,5 +1,5 @@
 packages:
-  - "apps/*"
+  - "apps/client"
   - "packages/*"
 allowBuilds:
   better-sqlite3: true

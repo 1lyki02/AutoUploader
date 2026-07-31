@@ -8,6 +8,7 @@ apps/client/release*/
 .env.local
 apps/client/license.config.json
 .cursor/
+supabase/
 supabase/.temp/
 .DS_Store
 *.db
@@ -17,6 +18,18 @@ out/
 __pycache__/
 *.pyc
 .vscode/
+
+# Private / internal tooling — not published
+apps/admin/
+apps/server/
+apps/telegram-admin/
+scripts/generate-license-keys.mjs
+docs/manual-licenses.md
+docker-compose.server.yml
+railway.json
+railway.toml
+.env.server.example
+branding/
 
 # Vendored binaries (copied by packages/automation/scripts/ensure-ffmpeg.mjs)
 packages/automation/vendor/
