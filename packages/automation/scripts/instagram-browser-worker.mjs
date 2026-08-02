@@ -87,10 +87,10 @@ async function runLogin(proxyFile) {
 
   try {
     const context = await browser.newContext({
-      viewport: { width: 1920, height: 1080 },
       locale: "ru-RU",
     });
     const page = await context.newPage();
+    await page.setViewportSize({ width: 1920, height: 1080 });
 
     await page.goto(SELECTORS.homeUrl, {
       waitUntil: "domcontentloaded",
@@ -414,7 +414,6 @@ async function runUpload(paramsFile) {
     browser = await launchBrowser(proxy, Boolean(headless));
     const context = await browser.newContext({
       storageState,
-      viewport: { width: 1920, height: 1080 },
       locale: "ru-RU",
     });
     await context.route("**/*", async (route) => {
@@ -426,6 +425,7 @@ async function runUpload(paramsFile) {
       }
     });
     const page = await context.newPage();
+    await page.setViewportSize({ width: 1920, height: 1080 });
     await page.addInitScript(() => {
       const silence = (el) => {
         try {
