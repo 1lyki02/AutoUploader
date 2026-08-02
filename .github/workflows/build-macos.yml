@@ -61,7 +61,15 @@ jobs:
           fi
 
       - name: Prepare Instagram worker
-        run: pnpm --filter @autouploader/client prepare:instagram-worker
+        run: |
+          for attempt in 1 2 3; do
+            echo "Attempt $attempt/3"
+            if pnpm --filter @autouploader/client prepare:instagram-worker; then
+              exit 0
+            fi
+            sleep 30
+          done
+          exit 1
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
 
