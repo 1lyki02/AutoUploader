@@ -33,6 +33,7 @@ npmRebuild: false
 win:
   target: nsis
   icon: icon.ico
+  artifactName: ROAD-Setup.${ext}
   # Local unsigned builds should not require Windows Developer Mode for winCodeSign symlinks.
   signAndEditExecutable: false
   extraResources:
@@ -42,8 +43,12 @@ win:
       to: ffmpeg/ffmpeg.exe
 mac:
   target:
-    - dmg
-    - zip
+    - target: dmg
+      arch: universal
+      artifactName: ROAD.${ext}
+    - target: zip
+      arch: universal
+      artifactName: ROAD-mac.${ext}
   icon: icon.png
   category: public.app-category.productivity
   identity: null
