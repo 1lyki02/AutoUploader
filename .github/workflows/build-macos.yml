@@ -71,7 +71,14 @@ jobs:
       - name: Read package version
         id: pkg
         working-directory: apps/client
-        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [ -z "$VERSION" ]; then
+            echo "Package version is empty" >&2
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Package version: $VERSION"
 
       - name: Verify build inputs
         run: |
@@ -102,6 +109,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.pkg.outputs.version }}
+          name: ROAD ${{ steps.pkg.outputs.version }}
           files: |
             apps/client/release/ROAD.dmg
             apps/client/release/ROAD-mac.zip
