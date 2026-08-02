@@ -68,14 +68,40 @@ jobs:
       - name: Build client
         run: pnpm --filter @autouploader/client build
 
-      - name: Build and publish to GitHub Releases
-        if: github.ref == 'refs/heads/ci-build' || startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
-        timeout-minutes: 90
+      - name: Read package version
+        id: pkg
         working-directory: apps/client
-        run: npx electron-builder --mac --publish always
+        run: echo "version=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+
+      - name: Verify build inputs
+        run: |
+          ls -la packages/automation/vendor/
+          test -f packages/automation/vendor/ffmpeg
+          test -f apps/client/build/icon.png
+
+      - name: Package macOS app
+        working-directory: apps/client
+        timeout-minutes: 60
+        run: npx electron-builder --mac --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: List release output
+        run: ls -la apps/client/release/
+
+      - name: Upload macOS assets to GitHub Release
+        if: github.ref == 'refs/heads/ci-build' || startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg.outputs.version }}
+          files: |
+            apps/client/release/ROAD.dmg
+            apps/client/release/ROAD-mac.zip
+            apps/client/release/latest-mac.yml
+          fail_on_unmatched_files: true
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build unsigned macOS app (artifacts only)
         if: github.event_name == 'workflow_dispatch' && inputs.publish != true
