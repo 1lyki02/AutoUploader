@@ -60,10 +60,19 @@ jobs:
             node scripts/ensure-license-config.mjs
           fi
 
+      - name: Prepare Instagram worker
+        run: pnpm --filter @autouploader/client prepare:instagram-worker
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+
+      - name: Build client
+        run: pnpm --filter @autouploader/client build
+
       - name: Build and publish to GitHub Releases
         if: github.ref == 'refs/heads/ci-build' || startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
         timeout-minutes: 90
-        run: pnpm --filter @autouploader/client publish:github:mac
+        working-directory: apps/client
+        run: npx electron-builder --mac --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
