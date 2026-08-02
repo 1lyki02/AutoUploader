@@ -16,6 +16,30 @@ function log(message) {
   console.log(`[prepare-instagram-worker] ${message}`);
 }
 
+function resolveNodeBinary() {
+  const fromEnv = process.env.npm_node_execpath ?? process.env.NODE;
+  if (fromEnv && existsSync(fromEnv)) return fromEnv;
+
+  if (process.platform === "win32") {
+    try {
+      const resolved = execSync("where.exe node", {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      })
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .find((line) => line.length > 0 && existsSync(line));
+      if (resolved) return resolved;
+    } catch {
+      // fall through
+    }
+  }
+
+  throw new Error(
+    "Node.js not found. Install Node 22+ and ensure `node` is on PATH before packaging the client.",
+  );
+}
+
 if (!existsSync(workerSrc)) {
   throw new Error(`Worker script not found: ${workerSrc}`);
 }
@@ -26,6 +50,14 @@ if (existsSync(outDir)) {
 mkdirSync(outDir, { recursive: true });
 
 cpSync(workerSrc, path.join(outDir, "instagram-browser-worker.mjs"));
+
+const hideScriptSrc = path.resolve(
+  clientDir,
+  "../../packages/automation/scripts/hide-camoufox-window.ps1",
+);
+if (existsSync(hideScriptSrc)) {
+  cpSync(hideScriptSrc, path.join(outDir, "hide-camoufox-window.ps1"));
+}
 
 const clientPkg = JSON.parse(readFileSync(path.join(clientDir, "package.json"), "utf8"));
 writeFileSync(
@@ -57,5 +89,11 @@ execSync("npx camoufox-js fetch", {
   env: { ...process.env, CAMOUFOX_INSTALL_DIR: camoufoxDir },
   stdio: "inherit",
 });
+
+const nodeRuntimeDir = path.join(outDir, "node");
+mkdirSync(nodeRuntimeDir, { recursive: true });
+const nodeBinaryName = process.platform === "win32" ? "node.exe" : "node";
+cpSync(resolveNodeBinary(), path.join(nodeRuntimeDir, nodeBinaryName));
+log(`Bundled Node runtime: ${path.join(nodeRuntimeDir, nodeBinaryName)}`);
 
 log(`Ready: ${outDir}`);

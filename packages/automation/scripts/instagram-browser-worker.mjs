@@ -1,11 +1,6 @@
 /**
  * Standalone Instagram browser worker (Camoufox).
- * Run outside Electron main to avoid Windows crashes when spawning Firefox.
- *
- *   node instagram-browser-worker.mjs login [--proxy-file path]
- *   node instagram-browser-worker.mjs upload --params-file path
- *
- * Writes JSON result to stdout; errors go to stderr with exit code 1.
+ * Upload flow matches v0.1.0 (reels feed + Create menu).
  */
 import { readFile } from "node:fs/promises";
 import { Camoufox } from "camoufox-js";
@@ -56,16 +51,22 @@ async function readJsonFile(filePath) {
   return JSON.parse(raw);
 }
 
-async function launchBrowser(proxy, headless = false) {
+/**
+ * Instagram upload fails in Firefox true-headless on Windows.
+ * `background=true` runs headed with a minimized window instead.
+ */
+async function launchBrowser(proxy, background = false) {
   const launch = {
-    headless,
+    // Never true-headless — Instagram upload breaks on Windows.
+    headless: false,
     os: resolveCamoufoxOs(),
     locale: "ru-RU",
     humanize: true,
     exclude_addons: ["UBO"],
     firefox_user_prefs: {
       "media.volume_scale": "0.0",
-      "media.default_volume": 0.0,
+      // Minimize only. SW_HIDE / off-screen coords break Instagram UI.
+      ...(background ? { "browser.startup.minimized": true } : {}),
     },
   };
 
@@ -133,86 +134,157 @@ async function runLogin(proxyFile) {
 }
 
 async function dismissCookieBanner(page) {
-  await page
-    .getByRole("button", { name: SELECTORS.cookieConsentButtonText })
-    .click({ timeout: 3000 })
-    .catch(() => {});
+  await domClickButton(page, SELECTORS.cookieConsentButtonText);
+}
+
+async function dismissPromoDialogs(page) {
+  await domClickButton(page, /Не сейчас|Not now|Maybe later|Позже/i);
+
+  await page.evaluate(() => {
+    for (const button of document.querySelectorAll("button, [role='button']")) {
+      const text = (button.textContent || "").trim();
+      if (text === "OK" || text === "Понятно" || text === "Got it" || text === "Хорошо") {
+        button.click();
+        return;
+      }
+    }
+  });
+}
+
+/** Playwright click hangs on Camoufox when overlays intercept — use DOM click. */
+async function domClickButton(page, labelPattern) {
+  return page.evaluate(({ source, flags }) => {
+    const re = new RegExp(source, flags);
+    const nodes = document.querySelectorAll(
+      'button, [role="button"], a, span, div[role="menuitem"], [role="link"]',
+    );
+    for (const el of nodes) {
+      const text = (el.textContent || "").trim();
+      const aria = el.getAttribute("aria-label") || "";
+      if (!re.test(text) && !re.test(aria)) continue;
+      const clickable =
+        el.closest('button, [role="button"], a, [role="menuitem"], [role="link"]') || el;
+      const rect = clickable.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      clickable.click();
+      return true;
+    }
+    return false;
+  }, { source: labelPattern.source, flags: labelPattern.flags });
+}
+
+async function clickSidebarCreate(page) {
+  return page.evaluate(() => {
+    const labelPattern = /создать|create|new post|новая публикация/i;
+    const tryClick = (el) => {
+      if (!el) return false;
+      const clickable =
+        el.closest('a, button, [role="button"], [role="link"], div[tabindex]') || el;
+      const rect = clickable.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return false;
+      clickable.click();
+      return true;
+    };
+
+    for (const svg of document.querySelectorAll("svg[aria-label]")) {
+      const label = svg.getAttribute("aria-label") || "";
+      if (!labelPattern.test(label)) continue;
+      if (tryClick(svg)) return true;
+    }
+
+    for (const el of document.querySelectorAll(
+      'a[href*="/create"], [aria-label*="Create"], [aria-label*="Создать"], [aria-label*="New post"]',
+    )) {
+      const href = el.getAttribute("href") || "";
+      if (href.includes("/reels/create")) continue;
+      if (tryClick(el)) return true;
+    }
+
+    for (const el of document.querySelectorAll(
+      'nav a, nav span, [role="navigation"] a, [role="navigation"] span, [role="button"], button',
+    )) {
+      const text = (el.textContent || "").trim();
+      if (!/^(Создать|Create|New post)$/i.test(text)) continue;
+      if (tryClick(el)) return true;
+    }
+
+    return false;
+  });
 }
 
 async function clickCreate(page) {
-  const candidates = [
-    page.getByRole("link", { name: SELECTORS.createButtonText }).first(),
-    page.getByRole("button", { name: SELECTORS.createButtonText }).first(),
-    page
-      .locator('svg[aria-label="Создать"], svg[aria-label="New post"], svg[aria-label="Create"]')
-      .first(),
-    page.getByLabel(SELECTORS.createReelsAria).first(),
-    page.locator('span:text-is("Создать"), span:text-is("Create")').first(),
-  ];
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await dismissCookieBanner(page);
+    await dismissPromoDialogs(page);
 
-  for (const locator of candidates) {
-    if ((await locator.count()) === 0) continue;
-    try {
-      await locator.click({ timeout: 5000 });
+    if (await clickSidebarCreate(page)) {
       return;
-    } catch {
-      // try next
     }
+
+    if (await domClickButton(page, SELECTORS.createButtonText)) {
+      return;
+    }
+
+    await page.waitForTimeout(1000);
   }
 
-  throw new Error("Не найдена кнопка «Создать» в Instagram.");
+  throw new Error(
+    "Не найдена кнопка «Создать» в Instagram. Дождитесь загрузки ленты или переподключите аккаунт.",
+  );
 }
 
 async function clickReelsOption(page) {
-  const candidates = [
-    page.getByRole("menuitem", { name: SELECTORS.reelsOptionText }).first(),
-    page.getByRole("button", { name: SELECTORS.reelsOptionText }).first(),
-    page.getByText(SELECTORS.reelsOptionText, { exact: true }).first(),
-  ];
-
-  for (const option of candidates) {
-    if ((await option.count()) === 0) continue;
-    try {
-      await option.click({ timeout: 5000 });
-      return true;
-    } catch {
-      // try next
-    }
+  if (await domClickButton(page, SELECTORS.reelsOptionText)) {
+    return true;
   }
-
   return false;
+}
+
+async function clickSelectFromComputer(page) {
+  return domClickButton(
+    page,
+    /^(Выбрать на компьютере|Выбрать с компьютера|Select from computer|Select files)$/i,
+  );
 }
 
 async function attachVideo(page, filePath) {
   const fileInput = page.locator(SELECTORS.fileInput).first();
   let reelsOptionClicked = false;
-  const deadline = Date.now() + 25_000;
+  const deadline = Date.now() + 60_000;
 
   while (Date.now() < deadline) {
-    // In some Instagram layouts Create opens the upload dialog immediately.
+    await dismissPromoDialogs(page);
+
+    // Some layouts open the upload dialog immediately after Create.
     if ((await fileInput.count()) > 0) {
       await fileInput.setInputFiles(filePath);
       return;
     }
 
-    // In other layouts Create first opens a Post/Reels menu.
+    // Other layouts first show Post / Reels / Story menu.
     if (!reelsOptionClicked) {
       reelsOptionClicked = await clickReelsOption(page);
+      if (reelsOptionClicked) {
+        await page.waitForTimeout(1000);
+        continue;
+      }
     }
 
-    // A/B variants create the input only after clicking this visible button.
-    const selectButton = page
-      .getByRole("button", {
-        name: /Выбрать на компьютере|Выбрать с компьютера|Select from computer/i,
-      })
-      .first();
-
-    if ((await selectButton.count()) > 0) {
-      const chooserPromise = page.waitForEvent("filechooser", { timeout: 10_000 });
-      await selectButton.click({ timeout: 5000 });
-      const chooser = await chooserPromise;
-      await chooser.setFiles(filePath);
-      return;
+    // A/B variants create the input only after this visible button.
+    if (await clickSelectFromComputer(page)) {
+      await page.waitForTimeout(750);
+      if ((await fileInput.count()) > 0) {
+        await fileInput.setInputFiles(filePath);
+        return;
+      }
+      try {
+        const chooser = await page.waitForEvent("filechooser", { timeout: 5000 });
+        await chooser.setFiles(filePath);
+        return;
+      } catch {
+        // fall through
+      }
     }
 
     await page.waitForTimeout(500);
@@ -229,10 +301,7 @@ async function attachVideo(page, filePath) {
 }
 
 async function dismissSampleModal(page) {
-  await page
-    .getByRole("button", { name: SELECTORS.gotItButtonText })
-    .click({ timeout: 4000 })
-    .catch(() => {});
+  await domClickButton(page, SELECTORS.gotItButtonText);
 
   await page.evaluate(() => {
     const dialog = document.querySelector('div[role="dialog"]');
@@ -249,58 +318,89 @@ async function dismissSampleModal(page) {
 }
 
 async function clickNext(page) {
-  const candidates = [
-    page.getByRole("button", { name: SELECTORS.nextButtonText }).first(),
-    page.getByRole("link", { name: SELECTORS.nextButtonText }).first(),
-    page.locator('div[role="button"]').filter({ hasText: SELECTORS.nextButtonText }).first(),
-    page.getByText(SELECTORS.nextButtonText, { exact: true }).first(),
-  ];
+  await dismissSampleModal(page);
+  await dismissPromoDialogs(page);
 
-  for (const next of candidates) {
-    try {
-      await next.waitFor({ state: "visible", timeout: 20_000 });
-      await next.click({ timeout: 20_000 });
-      return;
-    } catch {
-      // Video may still be processing; try another exact selector.
-    }
+  const deadline = Date.now() + 120_000;
+  while (Date.now() < deadline) {
+    await dismissSampleModal(page);
+    await dismissPromoDialogs(page);
+
+    const clicked = await page.evaluate(() => {
+      if (
+        document.querySelector(
+          '[data-visualcompletion="loading-state"], [role="progressbar"], [aria-busy="true"]',
+        )
+      ) {
+        return false;
+      }
+
+      const buttons = document.querySelectorAll('[role="button"], button, div[role="button"]');
+      for (const button of buttons) {
+        const text = (button.textContent || "").trim();
+        if (!/^(Далее|Next|Продолжить)$/.test(text)) continue;
+        if (
+          button.getAttribute("aria-disabled") === "true" ||
+          (button instanceof HTMLButtonElement && button.disabled)
+        ) {
+          continue;
+        }
+        const rect = button.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) continue;
+        button.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (clicked) return;
+    await page.waitForTimeout(1000);
   }
 
   throw new Error("Не найдена активная кнопка «Далее» после обработки видео.");
 }
 
 async function fillCaption(page, caption) {
-  const editor = page.locator(SELECTORS.captionEditor).first();
-  if ((await editor.count()) === 0) {
-    return;
-  }
+  const filled = await page.evaluate((text) => {
+    const editor = document.querySelector(
+      'div[contenteditable="true"], textarea[aria-label*="caption"], textarea[placeholder*="caption"], textarea[placeholder*="Напишите подпись"], textarea[aria-label*="Write a caption"]',
+    );
+    if (!editor) return false;
 
-  await editor.click({ timeout: 5000 });
-  await page.keyboard.press("Control+A");
-  await page.keyboard.press("Delete");
-  await page.keyboard.type(caption, { delay: 20 });
+    editor.focus();
+    if (editor instanceof HTMLTextAreaElement) {
+      editor.value = text;
+      editor.dispatchEvent(new Event("input", { bubbles: true }));
+      return true;
+    }
+
+    editor.textContent = text;
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true, data: text }));
+    return true;
+  }, caption);
+
+  if (!filled) return;
+
+  await page.waitForTimeout(300);
 }
 
 async function clickShare(page) {
-  const shareCandidates = [
-    page.getByRole("button", { name: SELECTORS.shareButtonText }).first(),
-    page
-      .locator('div[role="button"]')
-      .filter({ hasText: SELECTORS.shareButtonText })
-      .first(),
-    page.locator('[aria-label="Поделиться"], [aria-label="Share"]').first(),
-  ];
+  await dismissPromoDialogs(page);
 
-  for (const locator of shareCandidates) {
-    if ((await locator.count()) === 0) continue;
-    try {
-      await locator.scrollIntoViewIfNeeded();
-      await locator.click({ timeout: 5000 });
-      return;
-    } catch {
-      // try next
-    }
+  if (await domClickButton(page, SELECTORS.shareButtonText)) {
+    return;
   }
+
+  const ariaClicked = await page.evaluate(() => {
+    for (const el of document.querySelectorAll('[aria-label="Поделиться"], [aria-label="Share"]')) {
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      el.click();
+      return true;
+    }
+    return false;
+  });
+  if (ariaClicked) return;
 
   throw new Error("Не найдена кнопка «Поделиться» для публикации Reels.");
 }
@@ -308,17 +408,15 @@ async function clickShare(page) {
 async function runUpload(paramsFile) {
   const params = await readJsonFile(paramsFile);
   const { storageState, filePath, caption, proxy, headless = true } = params;
-
-  const browser = await launchBrowser(proxy, Boolean(headless));
+  let browser;
 
   try {
+    browser = await launchBrowser(proxy, Boolean(headless));
     const context = await browser.newContext({
       storageState,
       viewport: { width: 1920, height: 1080 },
       locale: "ru-RU",
     });
-    // The Reels feed downloads many videos and can keep the page busy for
-    // minutes. They are not needed to open the upload dialog.
     await context.route("**/*", async (route) => {
       const type = route.request().resourceType();
       if (type === "media" || type === "font") {
@@ -354,12 +452,11 @@ async function runUpload(paramsFile) {
       document.addEventListener("DOMContentLoaded", observe, true);
     });
 
-    // Open the lightweight home page instead of the video-heavy Reels feed.
-    await page.goto(SELECTORS.homeUrl, {
+    await page.goto(SELECTORS.reelsUrl, {
       waitUntil: "domcontentloaded",
-      timeout: 60_000,
+      timeout: 120_000,
     });
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(3000);
 
     if (page.url().includes("/accounts/login") || page.url().includes("/challenge")) {
       throw new Error(
@@ -368,12 +465,14 @@ async function runUpload(paramsFile) {
     }
 
     await dismissCookieBanner(page);
+    await dismissPromoDialogs(page);
     await clickCreate(page);
     await page.waitForTimeout(750);
     await attachVideo(page, filePath);
 
-    await page.waitForTimeout(8000);
+    await page.waitForTimeout(15_000);
     await dismissSampleModal(page);
+    await dismissPromoDialogs(page);
     await page.waitForTimeout(2000);
 
     await clickNext(page);
@@ -392,7 +491,7 @@ async function runUpload(paramsFile) {
     await context.close().catch(() => {});
     process.stdout.write(JSON.stringify({ ok: true }));
   } finally {
-    await browser.close().catch(() => {});
+    await browser?.close().catch(() => {});
   }
 }
 

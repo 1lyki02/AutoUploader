@@ -31,10 +31,11 @@ const statusMeta: Record<UploadJobSummary["status"], { label: string; className:
   missed: { label: "Пропущено", className: "border-amber-400/20 bg-amber-400/10 text-amber-200", icon: <TriangleAlert size={12} /> },
   needs_review: { label: "Нужна проверка", className: "border-amber-400/20 bg-amber-400/10 text-amber-200", icon: <TriangleAlert size={12} /> },
   reauth_required: { label: "Нужен вход", className: "border-orange-400/20 bg-orange-400/10 text-orange-200", icon: <TriangleAlert size={12} /> },
+  cancelled: { label: "Отменено", className: "border-zinc-400/20 bg-zinc-400/10 text-zinc-300", icon: <TriangleAlert size={12} /> },
 };
 
 export function StatusBadge({ status }: { status: UploadJobSummary["status"] }) {
-  const meta = statusMeta[status];
+  const meta = statusMeta[status] ?? statusMeta.failed;
   return <Badge className={meta.className}>{meta.icon}{meta.label}</Badge>;
 }
 

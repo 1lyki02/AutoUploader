@@ -43,6 +43,7 @@ contextBridge.exposeInMainWorld("api", {
       ipcRenderer.invoke(IPC_CHANNELS.createUploadBatch, request),
     list: () => ipcRenderer.invoke(IPC_CHANNELS.listUploadJobs),
     retry: (jobId: string) => ipcRenderer.invoke(IPC_CHANNELS.retryUploadJob, jobId),
+    cancel: (jobId: string) => ipcRenderer.invoke(IPC_CHANNELS.cancelUploadJob, jobId),
     onProgress: (callback: (job: UploadJobSummary) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, job: UploadJobSummary) => callback(job);
       ipcRenderer.on(IPC_CHANNELS.uploadJobProgress, listener);

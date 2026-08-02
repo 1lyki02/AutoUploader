@@ -9,6 +9,7 @@ export const JobStatusSchema = z.enum([
   "missed",
   "needs_review",
   "reauth_required",
+  "cancelled",
 ]);
 export type JobStatus = z.infer<typeof JobStatusSchema>;
 

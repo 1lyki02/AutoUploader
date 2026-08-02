@@ -4,13 +4,12 @@ import type { AccountSummary, UploadTransferProgress } from "@/env.d.ts";
 import type { PrivacyStatus, VideoDraft } from "@/model";
 import { PlatformBadge, SectionHeader } from "@/components/shared";
 import { Button, Card, EmptyState, Input, Textarea } from "@/components/ui";
-import { cn, fileName, titleFromPath } from "@/lib/utils";
+import { cn, fileName } from "@/lib/utils";
 
 export function PublishView({
   accounts,
   selectedAccountIds,
   videos,
-  defaultTitle,
   defaultDescription,
   defaultPrivacy,
   scheduleMode,
@@ -22,7 +21,6 @@ export function PublishView({
   onRemoveVideo,
   onUpdateVideo,
   onToggleAccount,
-  onDefaultTitle,
   onDefaultDescription,
   onDefaultPrivacy,
   onScheduleMode,
@@ -33,7 +31,6 @@ export function PublishView({
   accounts: AccountSummary[];
   selectedAccountIds: string[];
   videos: VideoDraft[];
-  defaultTitle: string;
   defaultDescription: string;
   defaultPrivacy: PrivacyStatus;
   scheduleMode: "now" | "scheduled";
@@ -45,7 +42,6 @@ export function PublishView({
   onRemoveVideo: (id: string) => void;
   onUpdateVideo: (id: string, patch: Partial<VideoDraft>) => void;
   onToggleAccount: (id: string, selected: boolean) => void;
-  onDefaultTitle: (value: string) => void;
   onDefaultDescription: (value: string) => void;
   onDefaultPrivacy: (value: PrivacyStatus) => void;
   onScheduleMode: (value: "now" | "scheduled") => void;
@@ -88,8 +84,7 @@ export function PublishView({
                       </div>
                       {expanded && (
                         <div className="grid gap-3 border-t border-border/60 bg-card/35 p-4">
-                          <label className="grid gap-1.5 text-xs font-medium">Название<Input value={video.title} onChange={(event) => onUpdateVideo(video.id, { title: event.target.value })} placeholder={defaultTitle || titleFromPath(video.filePath)} /></label>
-                          <label className="grid gap-1.5 text-xs font-medium">Описание<Textarea rows={3} value={video.description} onChange={(event) => onUpdateVideo(video.id, { description: event.target.value })} placeholder="Используется общее описание" /></label>
+                          <label className="grid gap-1.5 text-xs font-medium">Описание<Textarea rows={3} value={video.description} onChange={(event) => onUpdateVideo(video.id, { description: event.target.value })} placeholder={defaultDescription || "Подпись или название для Shorts/Reels"} /></label>
                           <label className="grid gap-1.5 text-xs font-medium">Приватность YouTube
                             <select className="h-9 rounded-lg border border-input bg-background/60 px-3 outline-none focus:border-primary/60" value={video.privacyStatus} onChange={(event) => onUpdateVideo(video.id, { privacyStatus: event.target.value as PrivacyStatus | "" })}>
                               <option value="">Общая настройка ({defaultPrivacy})</option><option value="private">Приватное</option><option value="unlisted">По ссылке</option><option value="public">Публичное</option>
@@ -108,14 +103,13 @@ export function PublishView({
           <Card className="p-5">
             <div className="mb-4"><h2 className="font-semibold">Общие метаданные</h2><p className="mt-1 text-xs text-muted-foreground">Применяются, если у видео не указаны индивидуальные значения.</p></div>
             <div className="grid gap-4">
-              <label className="grid gap-1.5 text-xs font-medium">Название по умолчанию<Input value={defaultTitle} onChange={(event) => onDefaultTitle(event.target.value)} placeholder="Если пусто — имя файла" /></label>
-              <label className="grid gap-1.5 text-xs font-medium">Общее описание<Textarea rows={3} value={defaultDescription} onChange={(event) => onDefaultDescription(event.target.value)} placeholder="Описание или подпись публикации" /></label>
+              <label className="grid gap-1.5 text-xs font-medium">Общее описание<Textarea rows={3} value={defaultDescription} onChange={(event) => onDefaultDescription(event.target.value)} placeholder="Подпись для всех видео в партии" /></label>
               <label className="grid gap-1.5 text-xs font-medium">Приватность YouTube
                 <select className="h-9 rounded-lg border border-input bg-background/60 px-3 outline-none focus:border-primary/60" value={defaultPrivacy} onChange={(event) => onDefaultPrivacy(event.target.value as PrivacyStatus)}>
                   <option value="private">Приватное</option><option value="unlisted">По ссылке</option><option value="public">Публичное</option>
                 </select>
               </label>
-              <div className="flex gap-2 rounded-lg border border-blue-400/15 bg-blue-400/[0.06] p-3 text-[11px] leading-5 text-blue-100/75"><Info size={15} className="mt-0.5 shrink-0 text-blue-300" />Для TikTok и Instagram название и описание будут использованы как подпись. Приватность применяется только к YouTube.</div>
+              <div className="flex gap-2 rounded-lg border border-blue-400/15 bg-blue-400/[0.06] p-3 text-[11px] leading-5 text-blue-100/75"><Info size={15} className="mt-0.5 shrink-0 text-blue-300" />Для YouTube Shorts это описание станет названием ролика. Для TikTok и Instagram — подписью. Если пусто — используется имя файла. Приватность применяется только к YouTube.</div>
             </div>
           </Card>
 

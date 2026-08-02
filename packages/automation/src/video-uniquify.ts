@@ -27,6 +27,10 @@ function resolveFfmpegPath(): string {
       : null,
     path.join(here, "../vendor", exe),
     path.join(here, "../../vendor", exe),
+    // Electron dev bundles main into apps/client/dist-electron/main.
+    path.join(here, "../../../../packages/automation/vendor", exe),
+    path.join(process.cwd(), "../../packages/automation/vendor", exe),
+    path.join(process.cwd(), "packages/automation/vendor", exe),
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of candidates) {
@@ -37,7 +41,7 @@ function resolveFfmpegPath(): string {
     const fromPackage = require("ffmpeg-static") as string | null;
     if (fromPackage && existsSync(fromPackage)) return fromPackage;
   } catch {
-    // optional
+    // ffmpeg-static may not be hoisted to the Electron app package.
   }
 
   return "ffmpeg";

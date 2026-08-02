@@ -5,6 +5,7 @@ const MAX_MULTIPLIER = 6;
 
 const PROBE_TARGETS = [
   "https://www.tiktok.com",
+  "https://www.instagram.com",
   "https://www.google.com/generate_204",
 ] as const;
 

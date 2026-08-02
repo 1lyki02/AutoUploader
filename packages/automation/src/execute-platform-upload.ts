@@ -27,13 +27,18 @@ export interface ExecutePlatformUploadParams {
   headless?: boolean;
   /** Soft uniqueness transform before upload. Default true. */
   uniquify?: boolean;
+  signal?: AbortSignal;
 }
 
 export async function executePlatformUpload(
   params: ExecutePlatformUploadParams,
 ): Promise<void> {
-  const title = params.title?.trim() || path.parse(params.filePath).name;
-  const description = params.description ?? "";
+  if (params.signal?.aborted) {
+    throw new DOMException("Upload cancelled", "AbortError");
+  }
+
+  const text =
+    params.description?.trim() || params.title?.trim() || path.parse(params.filePath).name;
   const unique = params.uniquify === false
     ? { filePath: params.filePath, cleanup: async () => undefined }
     : await uniquifyVideo(params.filePath);
@@ -52,8 +57,7 @@ export async function executePlatformUpload(
         { accessToken, refreshToken: params.credentials.refreshToken },
         {
           filePath: unique.filePath,
-          title,
-          description,
+          title: text,
           privacyStatus: params.privacyStatus ?? "private",
         },
       );
@@ -70,7 +74,7 @@ export async function executePlatformUpload(
         storageState: params.credentials.storageState,
         proxy: params.proxy,
         filePath: unique.filePath,
-        caption: description || title,
+        caption: text,
         headless: params.headless,
       });
       return;
@@ -81,8 +85,9 @@ export async function executePlatformUpload(
       storageState: params.credentials.storageState,
       proxy: params.proxy,
       filePath: unique.filePath,
-      caption: description || title,
+      caption: text,
       headless: params.headless,
+      signal: params.signal,
     });
   } finally {
     await unique.cleanup();

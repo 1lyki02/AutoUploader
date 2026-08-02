@@ -78,6 +78,7 @@ declare global {
         createBatch: (request: CreateUploadBatch) => Promise<UploadJobSummary[]>;
         list: () => Promise<UploadJobSummary[]>;
         retry: (jobId: string) => Promise<UploadJobSummary>;
+        cancel: (jobId: string) => Promise<UploadJobSummary>;
         onProgress: (callback: (job: UploadJobSummary) => void) => () => void;
         onUploadProgress: (callback: (progress: UploadTransferProgress) => void) => () => void;
       };

@@ -14,6 +14,7 @@ export const IPC_CHANNELS = {
   createUploadBatch: "jobs:create-batch",
   listUploadJobs: "jobs:list",
   retryUploadJob: "jobs:retry",
+  cancelUploadJob: "jobs:cancel",
   uploadJobProgress: "jobs:progress",
   uploadTransferProgress: "jobs:upload-progress",
   licenseStatus: "license:status",

@@ -28,7 +28,6 @@ export function App() {
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([]);
   const [connecting, setConnecting] = useState<ConnectPlatform | null>(null);
   const [videos, setVideos] = useState<VideoDraft[]>([]);
-  const [defaultTitle, setDefaultTitle] = useState("");
   const [defaultDescription, setDefaultDescription] = useState("");
   const [defaultPrivacy, setDefaultPrivacy] = useState<PrivacyStatus>("private");
   const [scheduleMode, setScheduleMode] = useState<ScheduleMode>("now");
@@ -141,7 +140,6 @@ export function App() {
         return [...current, ...paths.filter((path) => !known.has(path)).map((filePath) => ({
           id: crypto.randomUUID(),
           filePath,
-          title: "",
           description: "",
           privacyStatus: "" as const,
         }))];
@@ -175,12 +173,16 @@ export function App() {
     try {
       const created = await window.api.jobs.createBatch({
         accountIds: selectedAccountIds,
-        videos: videos.map((video) => ({
-          filePath: video.filePath,
-          title: video.title.trim() || defaultTitle.trim() || titleFromPath(video.filePath),
-          description: video.description.trim() || defaultDescription.trim() || undefined,
-          privacyStatus: video.privacyStatus || defaultPrivacy,
-        })),
+        videos: videos.map((video) => {
+          const text =
+            video.description.trim() || defaultDescription.trim() || titleFromPath(video.filePath);
+          return {
+            filePath: video.filePath,
+            title: text,
+            description: text,
+            privacyStatus: video.privacyStatus || defaultPrivacy,
+          };
+        }),
         scheduledAt,
       });
       setBatchJobIds(created.map((job) => job.id));
@@ -209,6 +211,16 @@ export function App() {
       toast.success("Задание возвращено в очередь");
     } catch (error) {
       toast.error("Не удалось повторить", { description: (error as Error).message });
+    }
+  };
+
+  const cancelJob = async (jobId: string) => {
+    try {
+      const updated = await window.api.jobs.cancel(jobId);
+      setJobs((current) => current.map((job) => (job.id === jobId ? updated : job)));
+      toast.success("Публикация отменена");
+    } catch (error) {
+      toast.error("Не удалось отменить", { description: (error as Error).message });
     }
   };
 
@@ -308,7 +320,6 @@ export function App() {
             accounts={accounts}
             selectedAccountIds={selectedAccountIds}
             videos={videos}
-            defaultTitle={defaultTitle}
             defaultDescription={defaultDescription}
             defaultPrivacy={defaultPrivacy}
             scheduleMode={scheduleMode}
@@ -320,7 +331,6 @@ export function App() {
             onRemoveVideo={(id) => setVideos((current) => current.filter((video) => video.id !== id))}
             onUpdateVideo={(id, patch) => setVideos((current) => current.map((video) => video.id === id ? { ...video, ...patch } : video))}
             onToggleAccount={toggleAccount}
-            onDefaultTitle={setDefaultTitle}
             onDefaultDescription={setDefaultDescription}
             onDefaultPrivacy={setDefaultPrivacy}
             onScheduleMode={setScheduleMode}
@@ -329,7 +339,7 @@ export function App() {
             onGoAccounts={() => setActiveView("accounts")}
           />
         )}
-        {activeView === "queue" && <QueueView jobs={visibleJobs} currentBatchActive={batchJobIds.length > 0} onShowHistory={() => setBatchJobIds([])} onRefresh={() => void refreshJobs()} onRetry={(id) => void retryJob(id)} />}
+        {activeView === "queue" && <QueueView jobs={visibleJobs} currentBatchActive={batchJobIds.length > 0} onShowHistory={() => setBatchJobIds([])} onRefresh={() => void refreshJobs()} onRetry={(id) => void retryJob(id)} onCancel={(id) => void cancelJob(id)} />}
         {activeView === "accounts" && (
           <AccountsView
             accounts={accounts}

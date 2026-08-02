@@ -205,4 +205,9 @@ export function registerVideoHandlers(): void {
     if (!server) throw new Error("Сервер не настроен");
     return server.retryJob(jobId);
   });
+  ipcMain.handle(IPC_CHANNELS.cancelUploadJob, async (_event, jobId: string) => {
+    const localJob = scheduler.listJobs().find((job) => job.id === jobId);
+    if (localJob) return scheduler.cancel(jobId);
+    throw new Error("Отмена доступна только для локальных заданий");
+  });
 }

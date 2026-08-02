@@ -1,6 +1,8 @@
 import type { Browser, BrowserContext } from "playwright-core";
 import type { ProxyConfig } from "@autouploader/shared";
 import { resolveCamoufoxOs } from "../platform.js";
+import { applyCamoufoxInstallDir } from "../camoufox-path.js";
+import { acquireCamoufoxHide } from "../hide-browser-window.js";
 
 export interface CamoufoxSessionOptions {
   headless?: boolean;
@@ -12,11 +14,6 @@ const lockedAccounts = new Set<string>();
 
 type CamoufoxFactory = (options?: Record<string, unknown>) => Promise<Browser>;
 
-/**
- * camoufox-js is ESM-only. Electron main is bundled as CJS, so a static
- * `import`/`require` crashes with ERR_REQUIRE_ESM. Load via native dynamic
- * import that Vite/Rollup cannot rewrite to require().
- */
 async function loadCamoufox(): Promise<CamoufoxFactory> {
   const dynamicImport = new Function("specifier", "return import(specifier)") as (
     specifier: string,
@@ -28,23 +25,28 @@ async function loadCamoufox(): Promise<CamoufoxFactory> {
 /**
  * Launch Camoufox (open-source anti-detect Firefox). Used for Instagram
  * because stock Chromium/Patchright is often blocked as automation.
+ *
+ * `headless: true` means background mode (headed + minimized) — Instagram
+ * upload does not complete in Firefox true-headless on Windows.
  */
 export async function launchCamoufoxBrowser(options: {
   headless?: boolean;
   proxy?: ProxyConfig;
 }): Promise<Browser> {
+  applyCamoufoxInstallDir();
   const Camoufox = await loadCamoufox();
+  const background = options.headless === true;
 
   const launch: Record<string, unknown> = {
-    headless: options.headless ?? false,
+    headless: false,
     os: resolveCamoufoxOs(),
     locale: "ru-RU",
     humanize: true,
-    // Default uBlock addon may be missing if fetch failed mid-way on GeoIP.
     exclude_addons: ["UBO"],
     firefox_user_prefs: {
       "media.volume_scale": "0.0",
-      "media.default_volume": 0.0,
+      // Minimize only — SW_HIDE / off-screen coords break Instagram UI.
+      ...(background ? { "browser.startup.minimized": true } : {}),
     },
   };
 
@@ -61,6 +63,7 @@ export async function launchCamoufoxBrowser(options: {
   return await Camoufox(launch);
 }
 
+
 export async function withInstagramCamoufoxContext<T>(
   accountId: string,
   options: CamoufoxSessionOptions,
@@ -72,6 +75,7 @@ export async function withInstagramCamoufoxContext<T>(
   lockedAccounts.add(accountId);
 
   let browser: Browser | undefined;
+  const stopHide = options.headless === true ? acquireCamoufoxHide() : () => undefined;
   try {
     browser = await launchCamoufoxBrowser({
       headless: options.headless,
@@ -80,7 +84,6 @@ export async function withInstagramCamoufoxContext<T>(
 
     const context = await browser.newContext({
       storageState: options.storageState as never,
-      viewport: { width: 1920, height: 1080 },
       locale: "ru-RU",
     });
 
@@ -90,6 +93,7 @@ export async function withInstagramCamoufoxContext<T>(
       await context.close().catch(() => {});
     }
   } finally {
+    stopHide();
     await browser?.close().catch(() => {});
     lockedAccounts.delete(accountId);
   }

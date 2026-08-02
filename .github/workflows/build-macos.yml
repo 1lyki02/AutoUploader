@@ -52,12 +52,16 @@ jobs:
                 publicJwk: JSON.parse(process.env.LICENSE_SIGNING_PUBLIC_JWK)
               }, null, 2));
             "
+          elif [ -f license.config.ci.json ]; then
+            cp license.config.ci.json license.config.json
+            echo "Using license.config.ci.json"
           else
             node scripts/ensure-license-config.mjs
           fi
 
       - name: Build and publish to GitHub Releases
         if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+        timeout-minutes: 90
         run: pnpm --filter @autouploader/client publish:github:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

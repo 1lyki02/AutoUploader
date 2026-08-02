@@ -1,4 +1,4 @@
-import { ListFilter, RefreshCw, RotateCcw, Search } from "lucide-react";
+import { ListFilter, RefreshCw, RotateCcw, Search, XCircle } from "lucide-react";
 import { useMemo, useState } from "react";
 import type { UploadJobSummary } from "@/env.d.ts";
 import { PlatformBadge, SectionHeader, StatusBadge } from "@/components/shared";
@@ -13,6 +13,7 @@ const filters: Array<{ id: Filter; label: string }> = [
   { id: "pending", label: "В очереди" },
   { id: "done", label: "Готово" },
   { id: "failed", label: "Ошибки" },
+  { id: "cancelled", label: "Отменено" },
   { id: "needs_review", label: "Проверка" },
   { id: "reauth_required", label: "Нужен вход" },
 ];
@@ -23,18 +24,22 @@ const retryableStatuses = new Set<UploadJobSummary["status"]>([
   "reauth_required",
 ]);
 
+const cancelableStatuses = new Set<UploadJobSummary["status"]>(["pending", "running"]);
+
 export function QueueView({
   jobs,
   currentBatchActive,
   onShowHistory,
   onRefresh,
   onRetry,
+  onCancel,
 }: {
   jobs: UploadJobSummary[];
   currentBatchActive: boolean;
   onShowHistory: () => void;
   onRefresh: () => void;
   onRetry: (id: string) => void;
+  onCancel: (id: string) => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
@@ -97,7 +102,25 @@ export function QueueView({
                       {job.status === "pending" && new Date(job.scheduledAt).getTime() > Date.now() && <p className="mt-1 text-[10px] text-primary/70">ожидает времени</p>}
                     </td>
                     <td className="px-3 py-3.5 text-muted-foreground">{job.attempts}</td>
-                    <td className="px-3 py-3.5">{retryableStatuses.has(job.status) ? <Button variant="ghost" size="sm" onClick={() => onRetry(job.id)}><RotateCcw size={13} />Повторить</Button> : <span className="text-muted-foreground/40">—</span>}</td>
+                    <td className="px-3 py-3.5">
+                      <div className="flex items-center gap-1">
+                        {cancelableStatuses.has(job.status) && (
+                          <Button variant="ghost" size="sm" onClick={() => onCancel(job.id)}>
+                            <XCircle size={13} />
+                            Отменить
+                          </Button>
+                        )}
+                        {retryableStatuses.has(job.status) && (
+                          <Button variant="ghost" size="sm" onClick={() => onRetry(job.id)}>
+                            <RotateCcw size={13} />
+                            Повторить
+                          </Button>
+                        )}
+                        {!cancelableStatuses.has(job.status) && !retryableStatuses.has(job.status) && (
+                          <span className="text-muted-foreground/40">—</span>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>

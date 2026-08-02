@@ -36,6 +36,7 @@ function errorMessage(error: unknown): string {
 export class UploadScheduler {
   private readonly pool: BoundedTaskPool;
   private readonly listeners = new Set<JobListener>();
+  private readonly activeJobs = new Map<string, AbortController>();
   private timer: NodeJS.Timeout | undefined;
   private pumping = false;
 
@@ -169,6 +170,37 @@ export class UploadScheduler {
     return summary;
   }
 
+  cancel(jobId: string): UploadJobSummary {
+    const db = getDb();
+    const row = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+    if (!row) throw new Error("Задание не найдено");
+    if (row.status !== "pending" && row.status !== "running") {
+      throw new Error("Отменить можно только задание в очереди или в процессе");
+    }
+
+    const now = new Date();
+    if (row.status === "pending") {
+      const updated = db
+        .update(jobs)
+        .set({ status: "cancelled", lastError: null, updatedAt: now })
+        .where(and(eq(jobs.id, jobId), eq(jobs.status, "pending")))
+        .run();
+      if (updated.changes !== 1) {
+        throw new Error("Не удалось отменить задание");
+      }
+    } else {
+      this.activeJobs.get(jobId)?.abort();
+      db.update(jobs)
+        .set({ status: "cancelled", lastError: null, updatedAt: now })
+        .where(and(eq(jobs.id, jobId), eq(jobs.status, "running")))
+        .run();
+    }
+
+    const summary = this.findSummary(jobId);
+    this.emit(summary);
+    return summary;
+  }
+
   private findSummary(jobId: string): UploadJobSummary {
     const summary = this.listJobs().find((item) => item.id === jobId);
     if (!summary) throw new Error("Не удалось прочитать задание");
@@ -220,11 +252,22 @@ export class UploadScheduler {
           updatedAt: now,
         };
         this.emitById(job.id);
+        const abortController = new AbortController();
+        this.activeJobs.set(job.id, abortController);
         void this.pool
-          .run(task, () => executeUploadJob(runningJob))
-          .then(() => this.finish(job.id, "done", null))
-          .catch((error) => this.finish(job.id, "failed", errorMessage(error)))
-          .finally(() => this.pump());
+          .run(task, () => executeUploadJob(runningJob, abortController.signal))
+          .then(() => {
+            if (abortController.signal.aborted) return;
+            this.finish(job.id, "done", null);
+          })
+          .catch((error) => {
+            if (abortController.signal.aborted) return;
+            this.finish(job.id, "failed", errorMessage(error));
+          })
+          .finally(() => {
+            this.activeJobs.delete(job.id);
+            this.pump();
+          });
       }
     } finally {
       this.pumping = false;
@@ -232,8 +275,13 @@ export class UploadScheduler {
   }
 
   private finish(jobId: string, status: "done" | "failed", lastError: string | null): void {
-    getDb()
-      .update(jobs)
+    const db = getDb();
+    const current = db.select().from(jobs).where(eq(jobs.id, jobId)).get();
+    if (!current || current.status === "cancelled") {
+      return;
+    }
+
+    db.update(jobs)
       .set({ status, lastError, updatedAt: new Date() })
       .where(eq(jobs.id, jobId))
       .run();

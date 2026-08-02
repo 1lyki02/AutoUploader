@@ -1,0 +1,8 @@
+{
+  "apiUrl": "https://appgdlxxzmcdqkdisdrb.supabase.co/functions/v1/license",
+  "publicJwk": {
+    "crv": "Ed25519",
+    "x": "fFS6mV6AnmKsX3t5kJVdGmILhFe8xAP--PEA_uAg2YA",
+    "kty": "OKP"
+  }
+}

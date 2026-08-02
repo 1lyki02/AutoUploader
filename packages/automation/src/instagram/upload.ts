@@ -2,6 +2,10 @@ import type { Page } from "patchright";
 import type { ProxyConfig } from "@autouploader/shared";
 import { withAccountContext } from "../browser-pool.js";
 import { INSTAGRAM_SELECTORS } from "./selectors.js";
+import {
+  runInstagramUploadViaSubprocess,
+  shouldUseInstagramSubprocess,
+} from "./subprocess.js";
 
 export interface UploadInstagramParams {
   accountId: string;
@@ -9,13 +13,21 @@ export interface UploadInstagramParams {
   proxy?: ProxyConfig;
   filePath: string;
   caption?: string;
-  /** Defaults to visible — Instagram UI automation is more reliable headed. */
+  /** `true` = background (headed minimized). `false` = visible window. */
   headless?: boolean;
+  signal?: AbortSignal;
 }
 
 async function dismissCookieBanner(page: Page): Promise<void> {
   await page
     .getByRole("button", { name: INSTAGRAM_SELECTORS.cookieConsentButtonText })
+    .click({ timeout: 3000 })
+    .catch(() => {});
+}
+
+async function dismissPromoDialogs(page: Page): Promise<void> {
+  await page
+    .getByRole("button", { name: /Не сейчас|Not now|Maybe later|Позже/i })
     .click({ timeout: 3000 })
     .catch(() => {});
 }
@@ -121,66 +133,86 @@ async function clickShare(page: Page): Promise<void> {
   throw new Error("Не найдена кнопка «Поделиться» для публикации Reels.");
 }
 
+async function runUploadFlow(page: Page, filePath: string, caption?: string): Promise<void> {
+  await page.goto(INSTAGRAM_SELECTORS.reelsUrl, {
+    waitUntil: "domcontentloaded",
+    timeout: 120_000,
+  });
+  await page.waitForTimeout(3000);
+
+  if (page.url().includes("/accounts/login") || page.url().includes("/challenge")) {
+    throw new Error(
+      "Instagram session недействительна. Переподключите Instagram-аккаунт и попробуйте снова.",
+    );
+  }
+
+  await dismissCookieBanner(page);
+  await dismissPromoDialogs(page);
+  await clickCreate(page);
+  await page.waitForTimeout(2500);
+  await clickReelsOption(page);
+  await page.waitForTimeout(2500);
+
+  const fileInput = page.locator(INSTAGRAM_SELECTORS.fileInput).first();
+  await page.waitForSelector(INSTAGRAM_SELECTORS.fileInput, {
+    timeout: 60_000,
+    state: "attached",
+  });
+  if ((await fileInput.count()) === 0) {
+    throw new Error("Не удалось найти поле загрузки файла на Instagram.");
+  }
+  await fileInput.setInputFiles(filePath);
+
+  await page.waitForTimeout(15_000);
+  await dismissSampleModal(page);
+  await dismissPromoDialogs(page);
+  await page.waitForTimeout(2000);
+
+  await clickNext(page);
+  await page.waitForTimeout(3000);
+  await clickNext(page);
+  await page.waitForTimeout(3000);
+
+  if (caption) {
+    await fillCaption(page, caption);
+    await page.waitForTimeout(1500);
+  }
+
+  await clickShare(page);
+  await page.waitForTimeout(30_000);
+}
+
 /**
  * Uploads and publishes an Instagram Reel via browser UI.
- * Flow ported from the working Selenium InstagramManual.upload_reels prototype.
+ * Flow ported from the working Selenium InstagramManual.upload_reels prototype (v0.1.0).
  */
 export async function uploadToInstagram(params: UploadInstagramParams): Promise<void> {
+  if (params.signal?.aborted) {
+    throw new DOMException("Upload cancelled", "AbortError");
+  }
+
+  if (shouldUseInstagramSubprocess()) {
+    await runInstagramUploadViaSubprocess({
+      storageState: params.storageState,
+      filePath: params.filePath,
+      caption: params.caption,
+      proxy: params.proxy,
+      headless: params.headless ?? true,
+      signal: params.signal,
+    });
+    return;
+  }
+
   await withAccountContext(
     params.accountId,
     {
-      headless: params.headless ?? false,
+      headless: params.headless ?? true,
       storageState: params.storageState,
       proxy: params.proxy,
     },
     async (context) => {
       const page = await context.newPage();
-
-      await page.goto(INSTAGRAM_SELECTORS.reelsUrl, {
-        waitUntil: "domcontentloaded",
-        timeout: 120_000,
-      });
-      await page.waitForTimeout(3000);
-
-      if (page.url().includes("/accounts/login") || page.url().includes("/challenge")) {
-        throw new Error(
-          "Instagram session недействительна. Переподключите Instagram-аккаунт и попробуйте снова.",
-        );
-      }
-
-      await dismissCookieBanner(page);
-      await clickCreate(page);
-      await page.waitForTimeout(2500);
-      await clickReelsOption(page);
-      await page.waitForTimeout(2500);
-
-      const fileInput = page.locator(INSTAGRAM_SELECTORS.fileInput).first();
-      await page.waitForSelector(INSTAGRAM_SELECTORS.fileInput, {
-        timeout: 60_000,
-        state: "attached",
-      });
-      if ((await fileInput.count()) === 0) {
-        throw new Error("Не удалось найти поле загрузки файла на Instagram.");
-      }
-      await fileInput.setInputFiles(params.filePath);
-
-      // Video processing — timings from the working Selenium flow.
-      await page.waitForTimeout(15_000);
-      await dismissSampleModal(page);
-      await page.waitForTimeout(2000);
-
-      await clickNext(page);
-      await page.waitForTimeout(3000);
-      await clickNext(page);
-      await page.waitForTimeout(3000);
-
-      if (params.caption) {
-        await fillCaption(page, params.caption);
-        await page.waitForTimeout(1500);
-      }
-
-      await clickShare(page);
-      await page.waitForTimeout(30_000);
+      await runUploadFlow(page, params.filePath, params.caption);
     },
   );
 }

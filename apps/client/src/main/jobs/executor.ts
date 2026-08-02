@@ -12,7 +12,7 @@ function instagramProxy(rowProxy: string | null): ProxyConfig | undefined {
   return getInstagramProxyFromEnv();
 }
 
-export async function executeUploadJob(job: JobRow): Promise<void> {
+export async function executeUploadJob(job: JobRow, signal?: AbortSignal): Promise<void> {
   const db = getDb();
   const account = db.select().from(accounts).where(eq(accounts.id, job.accountId)).get();
   const video = db.select().from(videos).where(eq(videos.id, job.videoId)).get();
@@ -35,5 +35,6 @@ export async function executeUploadJob(job: JobRow): Promise<void> {
     privacyStatus: video.privacyStatus as "private" | "unlisted" | "public",
     youtubeOAuth: platform === "youtube" ? getYoutubeOAuthCredentials() : undefined,
     headless: true,
+    signal,
   });
 }
