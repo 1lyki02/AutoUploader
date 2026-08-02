@@ -10,17 +10,17 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-Setup-0.1.0.exe">
+  <a href="https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-Setup.exe">
     <img alt="Скачать для Windows" src="https://img.shields.io/badge/Windows-Скачать-0078D6?style=for-the-badge&logo=windows&logoColor=white" />
   </a>
   &nbsp;
-  <a href="https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-0.1.0.dmg">
+  <a href="https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD.dmg">
     <img alt="Скачать для macOS" src="https://img.shields.io/badge/macOS-Скачать-000000?style=for-the-badge&logo=apple&logoColor=white" />
   </a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/1lyki02/AutoUploader/releases"><img src="https://img.shields.io/github/v/release/1lyki02/AutoUploader?label=версия&style=flat-square" alt="Release" /></a>
+  <a href="https://github.com/1lyki02/AutoUploader/releases/latest"><img src="https://img.shields.io/github/v/release/1lyki02/AutoUploader?label=версия&style=flat-square" alt="Release" /></a>
   <a href="https://t.me/ROAD_sup"><img src="https://img.shields.io/badge/Telegram-@ROAD_sup-26A5E4?style=flat-square&logo=telegram&logoColor=white" alt="Support" /></a>
 </p>
 
@@ -52,15 +52,15 @@
 
 | | Файл | Система |
 |---|---|---|
-| **Windows** | [ROAD Setup 0.1.0.exe](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-Setup-0.1.0.exe) | Windows 10/11 |
-| **macOS** | [ROAD-0.1.0.dmg](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-0.1.0.dmg) | macOS 12+ |
-| **macOS (zip)** | [ROAD-0.1.0-mac.zip](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-0.1.0-mac.zip) | если не открывается `.dmg` |
+| **Windows** | [ROAD-Setup.exe](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-Setup.exe) | Windows 10/11 |
+| **macOS** | [ROAD.dmg](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD.dmg) | macOS 12+ |
+| **macOS (zip)** | [ROAD-mac.zip](https://github.com/1lyki02/AutoUploader/releases/latest/download/ROAD-mac.zip) | если не открывается `.dmg` |
 
 [**Все файлы релиза →**](https://github.com/1lyki02/AutoUploader/releases/latest)
 
 ### Windows
 
-1. Скачайте и запустите `ROAD Setup 0.1.0.exe`
+1. Скачайте и запустите `ROAD-Setup.exe`
 2. Установите приложение
 3. Активируйте лицензионный ключ
 4. Подключите аккаунты и создайте первую публикацию
@@ -69,9 +69,8 @@
 
 ### macOS
 
-1. Скачайте `ROAD-0.1.0.dmg` и перетащите ROAD в «Программы»
+1. Скачайте `ROAD.dmg` и перетащите ROAD в «Программы»
 2. При первом запуске: **ПКМ по ROAD → «Открыть» → «Открыть»**
-   - или **Системные настройки → Конфиденциальность и безопасность → «Всё равно открыть»**
 3. Активируйте лицензионный ключ и подключите аккаунты
 
 > Сборка без подписи Apple Developer · Apple Silicon и Intel
@@ -83,16 +82,8 @@
 | Telegram | [@ROAD_sup](https://t.me/ROAD_sup) |
 | Email | [support@road.app](mailto:support@road.app) |
 
-По вопросам оплаты, продления подписки и сброса устройства — пишите в поддержку.
-
-## Для кого
-
-- авторы с регулярным контент-планом
-- SMM-специалисты и небольшие агентства
-- те, кто публикует Shorts, Reels и TikTok на нескольких площадках
-
 ---
 
 <p align="center">
-  <sub>ROAD · Публикации по расписанию</sub>
+  <sub>ROAD · Публикации по расписанию · v0.1.2</sub>
 </p>
