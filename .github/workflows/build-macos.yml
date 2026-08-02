@@ -60,14 +60,22 @@ jobs:
             node scripts/ensure-license-config.mjs
           fi
 
+      - name: Cache Instagram worker bundle
+        uses: actions/cache@v4
+        id: ig-cache
+        with:
+          path: apps/client/build/instagram-worker
+          key: ig-worker-${{ hashFiles('packages/automation/scripts/instagram-browser-worker.mjs', 'apps/client/package.json', 'pnpm-lock.yaml') }}
+
       - name: Prepare Instagram worker
+        if: steps.ig-cache.outputs.cache-hit != 'true'
         run: |
           for attempt in 1 2 3; do
             echo "Attempt $attempt/3"
             if pnpm --filter @autouploader/client prepare:instagram-worker; then
               exit 0
             fi
-            sleep 30
+            sleep 45
           done
           exit 1
         env:
