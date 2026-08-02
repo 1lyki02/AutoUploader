@@ -87,7 +87,15 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
       - name: List release output
-        run: ls -la apps/client/release/
+        run: |
+          cd apps/client/release
+          ls -la
+          for zip in *.zip; do
+            if [ "$zip" != "ROAD-mac.zip" ]; then
+              mv "$zip" ROAD-mac.zip
+            fi
+          done
+          ls -la
 
       - name: Upload macOS assets to GitHub Release
         if: github.ref == 'refs/heads/ci-build' || startsWith(github.ref, 'refs/tags/v') || inputs.publish == true

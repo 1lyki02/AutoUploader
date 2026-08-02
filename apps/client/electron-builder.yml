@@ -43,10 +43,8 @@ win:
       to: ffmpeg/ffmpeg.exe
 mac:
   target:
-    - target: dmg
-      artifactName: ROAD.${ext}
-    - target: zip
-      artifactName: ROAD-mac.${ext}
+    - dmg
+    - zip
   icon: icon.png
   category: public.app-category.productivity
   identity: null
@@ -55,6 +53,8 @@ mac:
   extraResources:
     - from: ../../packages/automation/vendor/ffmpeg
       to: ffmpeg/ffmpeg
+dmg:
+  artifactName: ROAD.${ext}
 linux:
   target:
     - AppImage
