@@ -15,6 +15,36 @@ export interface YouTubeUploadParams {
   madeForKids?: boolean;
 }
 
+const UPLOAD_MAX_ATTEMPTS = 3;
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ECONNRESET",
+  "ETIMEDOUT",
+  "ECONNREFUSED",
+  "EPIPE",
+  "ENOTFOUND",
+  "EAI_AGAIN",
+]);
+
+function isRetryableYouTubeUploadError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const code = "code" in error ? String(error.code) : "";
+  if (RETRYABLE_NETWORK_CODES.has(code)) return true;
+
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    RETRYABLE_NETWORK_CODES.has(message)
+    || message.includes("ECONNRESET")
+    || message.includes("ETIMEDOUT")
+    || message.includes("socket hang up")
+    || message.toLowerCase().includes("network")
+  );
+}
+
+function wait(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function uploadYouTubeShort(
   creds: YouTubeOAuthCredentials,
   tokens: { accessToken: string; refreshToken: string },
@@ -27,30 +57,44 @@ export async function uploadYouTubeShort(
   });
 
   const youtube = google.youtube({ version: "v3", auth });
-
-  const res = await youtube.videos.insert({
-    part: ["snippet", "status"],
-    requestBody: {
-      snippet: {
-        title: params.title,
-        description: params.description,
-        tags: params.tags,
-      },
-      status: {
-        privacyStatus: params.publishAt ? "private" : (params.privacyStatus ?? "public"),
-        publishAt: params.publishAt,
-        selfDeclaredMadeForKids: params.madeForKids ?? false,
-      },
+  const requestBody = {
+    snippet: {
+      title: params.title,
+      description: params.description,
+      tags: params.tags,
     },
-    media: {
-      body: fs.createReadStream(params.filePath),
+    status: {
+      privacyStatus: params.publishAt ? "private" : (params.privacyStatus ?? "public"),
+      publishAt: params.publishAt,
+      selfDeclaredMadeForKids: params.madeForKids ?? false,
     },
-  });
+  };
 
-  const videoId = res.data.id;
-  if (!videoId) {
-    throw new Error("YouTube API не вернул id загруженного видео");
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= UPLOAD_MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await youtube.videos.insert({
+        part: ["snippet", "status"],
+        requestBody,
+        media: {
+          body: fs.createReadStream(params.filePath),
+        },
+      });
+
+      const videoId = res.data.id;
+      if (!videoId) {
+        throw new Error("YouTube API не вернул id загруженного видео");
+      }
+
+      return { videoId };
+    } catch (error) {
+      lastError = error;
+      if (attempt === UPLOAD_MAX_ATTEMPTS || !isRetryableYouTubeUploadError(error)) {
+        throw error;
+      }
+      await wait(4000 * attempt);
+    }
   }
 
-  return { videoId };
+  throw lastError instanceof Error ? lastError : new Error(String(lastError));
 }
