@@ -1,18 +1,24 @@
 import { execFileSync, spawn, type ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, unlinkSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-function resolveHideScriptPath(): string {
+export const PAUSE_CAMOUFOX_HIDE_FLAG = path.join(
+  os.tmpdir(),
+  "autouploader-pause-camoufox-hide",
+);
+
+function resolveAutomationScript(name: string): string {
   const candidates = [
-    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts/hide-camoufox-window.ps1"),
-    path.resolve(process.cwd(), "../../packages/automation/scripts/hide-camoufox-window.ps1"),
-    path.resolve(process.cwd(), "../packages/automation/scripts/hide-camoufox-window.ps1"),
-    path.resolve(process.cwd(), "packages/automation/scripts/hide-camoufox-window.ps1"),
-    path.resolve(process.cwd(), "build/instagram-worker/hide-camoufox-window.ps1"),
-    path.resolve(process.cwd(), "../../apps/client/build/instagram-worker/hide-camoufox-window.ps1"),
+    path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../scripts", name),
+    path.resolve(process.cwd(), "../../packages/automation/scripts", name),
+    path.resolve(process.cwd(), "../packages/automation/scripts", name),
+    path.resolve(process.cwd(), "packages/automation/scripts", name),
+    path.resolve(process.cwd(), "build/instagram-worker", name),
+    path.resolve(process.cwd(), "../../apps/client/build/instagram-worker", name),
     typeof process.resourcesPath === "string"
-      ? path.join(process.resourcesPath, "instagram-worker", "hide-camoufox-window.ps1")
+      ? path.join(process.resourcesPath, "instagram-worker", name)
       : null,
   ].filter((candidate): candidate is string => Boolean(candidate));
 
@@ -22,7 +28,15 @@ function resolveHideScriptPath(): string {
     }
   }
 
-  return candidates[0] ?? path.resolve(process.cwd(), "hide-camoufox-window.ps1");
+  return candidates[0] ?? path.resolve(process.cwd(), name);
+}
+
+function resolveHideScriptPath(): string {
+  return resolveAutomationScript("hide-camoufox-window.ps1");
+}
+
+function resolveRestoreScriptPath(): string {
+  return resolveAutomationScript("restore-camoufox-window.ps1");
 }
 
 let hideRefCount = 0;
@@ -32,6 +46,46 @@ let resolvedHideScript: string | undefined;
 function hideScriptPath(): string {
   resolvedHideScript ??= resolveHideScriptPath();
   return resolvedHideScript;
+}
+
+/** Pause the hide loop (optional — e.g. debugging with a visible window). */
+export function pauseCamoufoxHide(): void {
+  try {
+    writeFileSync(PAUSE_CAMOUFOX_HIDE_FLAG, "");
+  } catch {
+    // Best-effort.
+  }
+}
+
+export function resumeCamoufoxHide(): void {
+  try {
+    unlinkSync(PAUSE_CAMOUFOX_HIDE_FLAG);
+  } catch {
+    // Best-effort.
+  }
+  hideCamoufoxWindowsSync();
+}
+
+/** Restore minimized Camoufox windows before the final publish click. */
+export function restoreCamoufoxWindowsSync(): void {
+  if (process.platform !== "win32") {
+    return;
+  }
+
+  const script = resolveRestoreScriptPath();
+  if (!existsSync(script)) {
+    return;
+  }
+
+  try {
+    execFileSync(
+      "powershell",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", script],
+      { windowsHide: true, stdio: "ignore", timeout: 2000 },
+    );
+  } catch {
+    // Best-effort.
+  }
 }
 
 /** Synchronous hide — catches windows as soon as they appear. */

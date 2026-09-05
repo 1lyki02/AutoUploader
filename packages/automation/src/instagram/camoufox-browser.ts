@@ -23,10 +23,10 @@ async function loadCamoufox(): Promise<CamoufoxFactory> {
 }
 
 /**
- * Launch Camoufox (open-source anti-detect Firefox). Used for Instagram
- * because stock Chromium/Patchright is often blocked as automation.
+ * Launch Camoufox (open-source anti-detect Firefox). Used for Instagram and TikTok
+ * because stock Chromium/Patchright is often blocked or requires a separate install.
  *
- * `headless: true` means background mode (headed + minimized) — Instagram
+ * `headless: true` means background mode (headed + transparent window) — Instagram
  * upload does not complete in Firefox true-headless on Windows.
  */
 export async function launchCamoufoxBrowser(options: {
@@ -35,18 +35,16 @@ export async function launchCamoufoxBrowser(options: {
 }): Promise<Browser> {
   applyCamoufoxInstallDir();
   const Camoufox = await loadCamoufox();
-  const background = options.headless === true;
 
   const launch: Record<string, unknown> = {
     headless: false,
     os: resolveCamoufoxOs(),
     locale: "ru-RU",
     humanize: true,
+    window: [1920, 1080],
     exclude_addons: ["UBO"],
     firefox_user_prefs: {
       "media.volume_scale": "0.0",
-      // Minimize only — SW_HIDE / off-screen coords break Instagram UI.
-      ...(background ? { "browser.startup.minimized": true } : {}),
     },
   };
 
@@ -64,7 +62,7 @@ export async function launchCamoufoxBrowser(options: {
 }
 
 
-export async function withInstagramCamoufoxContext<T>(
+export async function withCamoufoxContext<T>(
   accountId: string,
   options: CamoufoxSessionOptions,
   fn: (context: BrowserContext, browser: Browser) => Promise<T>,

@@ -1,6 +1,6 @@
 /**
  * Standalone Instagram browser worker (Camoufox).
- * Upload flow matches v0.1.0 (reels feed + Create menu).
+ * Upload flow: Reels feed + DOM clicks (Camoufox). Share button via Playwright locators.
  */
 import { readFile } from "node:fs/promises";
 import { Camoufox } from "camoufox-js";
@@ -25,6 +25,9 @@ const SELECTORS = {
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 2000;
+const PUBLISH_WAIT_TIMEOUT_MS = 10 * 60 * 1000;
+const PUBLISH_POLL_MS = 2000;
+const PUBLISH_MIN_WAIT_MS = 60_000;
 
 function resolveCamoufoxOs() {
   const env = process.env.CAMOUFOX_OS;
@@ -53,7 +56,7 @@ async function readJsonFile(filePath) {
 
 /**
  * Instagram upload fails in Firefox true-headless on Windows.
- * `background=true` runs headed with a minimized window instead.
+ * `background=true` runs headed; window is hidden via transparency on Windows.
  */
 async function launchBrowser(proxy, background = false) {
   const launch = {
@@ -62,11 +65,11 @@ async function launchBrowser(proxy, background = false) {
     os: resolveCamoufoxOs(),
     locale: "ru-RU",
     humanize: true,
+    // Camoufox controls window size itself — do not call page.setViewportSize().
+    window: [1920, 1080],
     exclude_addons: ["UBO"],
     firefox_user_prefs: {
       "media.volume_scale": "0.0",
-      // Minimize only. SW_HIDE / off-screen coords break Instagram UI.
-      ...(background ? { "browser.startup.minimized": true } : {}),
     },
   };
 
@@ -90,7 +93,6 @@ async function runLogin(proxyFile) {
       locale: "ru-RU",
     });
     const page = await context.newPage();
-    await page.setViewportSize({ width: 1920, height: 1080 });
 
     await page.goto(SELECTORS.homeUrl, {
       waitUntil: "domcontentloaded",
@@ -256,13 +258,11 @@ async function attachVideo(page, filePath) {
   while (Date.now() < deadline) {
     await dismissPromoDialogs(page);
 
-    // Some layouts open the upload dialog immediately after Create.
     if ((await fileInput.count()) > 0) {
       await fileInput.setInputFiles(filePath);
       return;
     }
 
-    // Other layouts first show Post / Reels / Story menu.
     if (!reelsOptionClicked) {
       reelsOptionClicked = await clickReelsOption(page);
       if (reelsOptionClicked) {
@@ -271,7 +271,6 @@ async function attachVideo(page, filePath) {
       }
     }
 
-    // A/B variants create the input only after this visible button.
     if (await clickSelectFromComputer(page)) {
       await page.waitForTimeout(750);
       if ((await fileInput.count()) > 0) {
@@ -384,23 +383,128 @@ async function fillCaption(page, caption) {
   await page.waitForTimeout(300);
 }
 
+async function getPublishState(page) {
+  return page.evaluate(() => {
+    const text = (document.body?.innerText || "").slice(0, 12000);
+    const onComposeScreen = /Новое видео Reels|New reel|Create new reel/i.test(text);
+    let headerPublishVisible = false;
+
+    for (const el of document.querySelectorAll("a, button, div, span, [role='button']")) {
+      if (el.closest('[role="dialog"]')) continue;
+      const label = (el.textContent || "").trim();
+      if (label !== "Поделиться" && label !== "Share") continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (rect.top <= 200 && rect.right >= window.innerWidth * 0.45) {
+        headerPublishVisible = true;
+        break;
+      }
+    }
+
+    const shareSheetOpen =
+      /Поиск|Search|Копировать ссылку|Copy link/i.test(text)
+      && /Поделиться|Share/i.test(text);
+    const sharing = /sharing|публику|загрузк|uploading|processing|отправк/i.test(text);
+    const success =
+      /reel.*(shared|опублик)|your reel has been shared|reels.*опублик|shared successfully|опубликовано/i.test(
+        text,
+      );
+    const error = /something went wrong|что-то пошло не так|try again|повторите попытку|не удалось/i.test(
+      text,
+    );
+
+    return { onComposeScreen, headerPublishVisible, shareSheetOpen, sharing, success, error };
+  });
+}
+
+async function waitForPublishComplete(page) {
+  const startedAt = Date.now();
+  const deadline = startedAt + PUBLISH_WAIT_TIMEOUT_MS;
+  let leftComposeStreak = 0;
+
+  while (Date.now() < deadline) {
+    const state = await getPublishState(page);
+    const minWaitDone = Date.now() - startedAt >= PUBLISH_MIN_WAIT_MS;
+
+    if (state.error) {
+      throw new Error("Instagram сообщил об ошибке при публикации Reels.");
+    }
+    if (state.shareSheetOpen) {
+      throw new Error(
+        "Открылось окно «Поделиться с друзьями» вместо публикации Reels.",
+      );
+    }
+    if (state.success && minWaitDone) {
+      return;
+    }
+    if (!state.onComposeScreen && !state.headerPublishVisible && minWaitDone) {
+      leftComposeStreak += 1;
+      if (leftComposeStreak >= 2) {
+        return;
+      }
+    } else if (state.onComposeScreen || state.headerPublishVisible) {
+      leftComposeStreak = 0;
+    }
+
+    await page.waitForTimeout(PUBLISH_POLL_MS);
+  }
+
+  const finalState = await getPublishState(page);
+  if (finalState.onComposeScreen || finalState.headerPublishVisible) {
+    throw new Error(
+      "Instagram не подтвердил публикацию Reels — экран «Новое видео Reels» всё ещё открыт.",
+    );
+  }
+
+  const remaining = PUBLISH_MIN_WAIT_MS - (Date.now() - startedAt);
+  if (remaining > 0) {
+    await page.waitForTimeout(remaining);
+  }
+}
+
 async function clickShare(page) {
   await dismissPromoDialogs(page);
 
-  if (await domClickButton(page, SELECTORS.shareButtonText)) {
-    return;
+  const headerShare = page.locator("a, button, div, span, [role='button']").filter({
+    hasText: /^Поделиться$|^Share$/,
+  });
+  const headerCount = await headerShare.count();
+  for (let i = 0; i < headerCount; i++) {
+    const item = headerShare.nth(i);
+    const inDialog = await item.evaluate((el) => Boolean(el.closest('[role="dialog"]')));
+    if (inDialog) continue;
+
+    const box = await item.boundingBox();
+    if (!box || box.y > 200) continue;
+
+    const pageWidth = await page.evaluate(() => window.innerWidth);
+    if (box.x + box.width < pageWidth * 0.45) continue;
+
+    try {
+      await item.click({ timeout: 8000 });
+      return;
+    } catch {
+      // try next header match
+    }
   }
 
-  const ariaClicked = await page.evaluate(() => {
-    for (const el of document.querySelectorAll('[aria-label="Поделиться"], [aria-label="Share"]')) {
-      const rect = el.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) continue;
-      el.click();
-      return true;
+  const shareCandidates = [
+    page.getByRole("button", { name: SELECTORS.shareButtonText }).first(),
+    page.locator('div[role="button"]').filter({ hasText: SELECTORS.shareButtonText }).first(),
+    page.locator('[aria-label="Поделиться"], [aria-label="Share"]').first(),
+    page.getByText(/^Поделиться$|^Share$/).first(),
+  ];
+
+  for (const locator of shareCandidates) {
+    if ((await locator.count()) === 0) continue;
+    try {
+      await locator.scrollIntoViewIfNeeded();
+      await locator.click({ timeout: 8000 });
+      return;
+    } catch {
+      // try next
     }
-    return false;
-  });
-  if (ariaClicked) return;
+  }
 
   throw new Error("Не найдена кнопка «Поделиться» для публикации Reels.");
 }
@@ -425,7 +529,6 @@ async function runUpload(paramsFile) {
       }
     });
     const page = await context.newPage();
-    await page.setViewportSize({ width: 1920, height: 1080 });
     await page.addInitScript(() => {
       const silence = (el) => {
         try {
@@ -486,7 +589,7 @@ async function runUpload(paramsFile) {
     }
 
     await clickShare(page);
-    await page.waitForTimeout(30_000);
+    await waitForPublishComplete(page);
 
     await context.close().catch(() => {});
     process.stdout.write(JSON.stringify({ ok: true }));

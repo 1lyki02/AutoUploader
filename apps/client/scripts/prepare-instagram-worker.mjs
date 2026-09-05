@@ -1,5 +1,6 @@
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { execSync } from "node:child_process";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -44,6 +45,27 @@ if (!existsSync(workerSrc)) {
   throw new Error(`Worker script not found: ${workerSrc}`);
 }
 
+function camoufoxLooksInstalled(dir) {
+  return existsSync(path.join(dir, process.platform === "win32" ? "camoufox.exe" : "camoufox"));
+}
+
+function resolveCamoufoxCacheSource() {
+  const candidates = [
+    camoufoxDir,
+    path.join(clientDir, "release/win-unpacked/resources/instagram-worker/camoufox"),
+    path.join(os.tmpdir(), "autouploader-camoufox-backup"),
+  ];
+  return candidates.find((candidate) => camoufoxLooksInstalled(candidate));
+}
+
+const cachedCamoufox = resolveCamoufoxCacheSource();
+const tempCamoufoxBackup = path.join(os.tmpdir(), "autouploader-camoufox-backup");
+if (cachedCamoufox) {
+  rmSync(tempCamoufoxBackup, { recursive: true, force: true });
+  cpSync(cachedCamoufox, tempCamoufoxBackup, { recursive: true });
+  log(`Cached Camoufox browser from ${cachedCamoufox}`);
+}
+
 if (existsSync(outDir)) {
   rmSync(outDir, { recursive: true, force: true });
 }
@@ -57,6 +79,14 @@ const hideScriptSrc = path.resolve(
 );
 if (existsSync(hideScriptSrc)) {
   cpSync(hideScriptSrc, path.join(outDir, "hide-camoufox-window.ps1"));
+}
+
+const restoreScriptSrc = path.resolve(
+  clientDir,
+  "../../packages/automation/scripts/restore-camoufox-window.ps1",
+);
+if (existsSync(restoreScriptSrc)) {
+  cpSync(restoreScriptSrc, path.join(outDir, "restore-camoufox-window.ps1"));
 }
 
 const clientPkg = JSON.parse(readFileSync(path.join(clientDir, "package.json"), "utf8"));
@@ -84,11 +114,23 @@ execSync("npm install --omit=dev --no-package-lock", {
 
 log(`Fetching Camoufox browser to ${camoufoxDir}...`);
 mkdirSync(camoufoxDir, { recursive: true });
-execSync("npx camoufox-js fetch", {
-  cwd: outDir,
-  env: { ...process.env, CAMOUFOX_INSTALL_DIR: camoufoxDir },
-  stdio: "inherit",
-});
+try {
+  execSync("npx camoufox-js fetch", {
+    cwd: outDir,
+    env: {
+      ...process.env,
+      CAMOUFOX_INSTALL_DIR: camoufoxDir,
+      GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN,
+    },
+    stdio: "inherit",
+  });
+} catch (error) {
+  if (!camoufoxLooksInstalled(tempCamoufoxBackup)) {
+    throw error;
+  }
+  log(`Camoufox fetch failed, reusing cached browser from ${tempCamoufoxBackup}`);
+  cpSync(tempCamoufoxBackup, camoufoxDir, { recursive: true });
+}
 
 const nodeRuntimeDir = path.join(outDir, "node");
 mkdirSync(nodeRuntimeDir, { recursive: true });

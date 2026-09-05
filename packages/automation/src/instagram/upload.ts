@@ -13,7 +13,7 @@ export interface UploadInstagramParams {
   proxy?: ProxyConfig;
   filePath: string;
   caption?: string;
-  /** `true` = background (headed minimized). `false` = visible window. */
+  /** `true` = background (headed transparent). `false` = visible window. */
   headless?: boolean;
   signal?: AbortSignal;
 }
@@ -21,13 +21,6 @@ export interface UploadInstagramParams {
 async function dismissCookieBanner(page: Page): Promise<void> {
   await page
     .getByRole("button", { name: INSTAGRAM_SELECTORS.cookieConsentButtonText })
-    .click({ timeout: 3000 })
-    .catch(() => {});
-}
-
-async function dismissPromoDialogs(page: Page): Promise<void> {
-  await page
-    .getByRole("button", { name: /Не сейчас|Not now|Maybe later|Позже/i })
     .click({ timeout: 3000 })
     .catch(() => {});
 }
@@ -57,15 +50,24 @@ async function clickCreate(page: Page): Promise<void> {
   });
 }
 
-async function clickReelsOption(page: Page): Promise<void> {
-  const option = page
-    .locator('[role="menuitem"], [role="button"], span, a, div')
-    .filter({ hasText: INSTAGRAM_SELECTORS.reelsOptionText })
-    .first();
+async function clickReelsOption(page: Page): Promise<boolean> {
+  const candidates = [
+    page.getByRole("menuitem", { name: INSTAGRAM_SELECTORS.reelsOptionText }).first(),
+    page.getByRole("button", { name: INSTAGRAM_SELECTORS.reelsOptionText }).first(),
+    page.getByText(INSTAGRAM_SELECTORS.reelsOptionText, { exact: true }).first(),
+  ];
 
-  if ((await option.count()) > 0) {
-    await option.click({ timeout: 5000 }).catch(() => {});
+  for (const option of candidates) {
+    if ((await option.count()) === 0) continue;
+    try {
+      await option.click({ timeout: 5000 });
+      return true;
+    } catch {
+      // try next
+    }
   }
+
+  return false;
 }
 
 async function dismissSampleModal(page: Page): Promise<void> {
@@ -88,18 +90,6 @@ async function dismissSampleModal(page: Page): Promise<void> {
   });
 }
 
-async function clickNext(page: Page): Promise<void> {
-  const next = page
-    .locator('div[role="button"], button, a, span')
-    .filter({ hasText: INSTAGRAM_SELECTORS.nextButtonText })
-    .first();
-
-  if ((await next.count()) === 0) {
-    throw new Error("Не найдена кнопка «Далее» на шаге создания Reels.");
-  }
-  await next.click({ timeout: 8000 });
-}
-
 async function fillCaption(page: Page, caption: string): Promise<void> {
   const editor = page.locator(INSTAGRAM_SELECTORS.captionEditor).first();
   if ((await editor.count()) === 0) {
@@ -112,18 +102,152 @@ async function fillCaption(page: Page, caption: string): Promise<void> {
   await page.keyboard.type(caption, { delay: 20 });
 }
 
+async function clickNext(page: Page): Promise<void> {
+  const candidates = [
+    page.getByRole("button", { name: INSTAGRAM_SELECTORS.nextButtonText }).first(),
+    page.getByRole("link", { name: INSTAGRAM_SELECTORS.nextButtonText }).first(),
+    page.locator('div[role="button"]').filter({ hasText: INSTAGRAM_SELECTORS.nextButtonText }).first(),
+    page.getByText(INSTAGRAM_SELECTORS.nextButtonText, { exact: true }).first(),
+  ];
+
+  for (const next of candidates) {
+    try {
+      await next.waitFor({ state: "visible", timeout: 20_000 });
+      await next.click({ timeout: 20_000 });
+      return;
+    } catch {
+      // try next
+    }
+  }
+
+  throw new Error("Не найдена активная кнопка «Далее» после обработки видео.");
+}
+
+async function dismissPromoDialogs(page: Page): Promise<void> {
+  await page
+    .getByRole("button", { name: /Не сейчас|Not now|Maybe later|Позже/i })
+    .click({ timeout: 3000 })
+    .catch(() => {});
+}
+
+async function getPublishState(page: Page) {
+  return page.evaluate(() => {
+    const text = (document.body?.innerText || "").slice(0, 12000);
+    const onComposeScreen = /Новое видео Reels|New reel|Create new reel/i.test(text);
+    let headerPublishVisible = false;
+
+    for (const el of document.querySelectorAll("a, button, div, span, [role='button']")) {
+      if (el.closest('[role="dialog"]')) continue;
+      const label = (el.textContent || "").trim();
+      if (label !== "Поделиться" && label !== "Share") continue;
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) continue;
+      if (rect.top <= 200 && rect.right >= window.innerWidth * 0.45) {
+        headerPublishVisible = true;
+        break;
+      }
+    }
+
+    const shareSheetOpen =
+      /Поиск|Search|Копировать ссылку|Copy link/i.test(text)
+      && /Поделиться|Share/i.test(text);
+    const sharing = /sharing|публику|загрузк|uploading|processing|отправк/i.test(text);
+    const success =
+      /reel.*(shared|опублик)|your reel has been shared|reels.*опублик|shared successfully|опубликовано/i.test(
+        text,
+      );
+    const error = /something went wrong|что-то пошло не так|try again|повторите попытку|не удалось/i.test(
+      text,
+    );
+
+    return { onComposeScreen, headerPublishVisible, shareSheetOpen, sharing, success, error };
+  });
+}
+
+async function waitForPublishComplete(page: Page): Promise<void> {
+  const startedAt = Date.now();
+  const deadline = startedAt + 10 * 60 * 1000;
+  const publishMinWaitMs = 60_000;
+  let leftComposeStreak = 0;
+
+  while (Date.now() < deadline) {
+    const state = await getPublishState(page);
+    const minWaitDone = Date.now() - startedAt >= publishMinWaitMs;
+
+    if (state.error) {
+      throw new Error("Instagram сообщил об ошибке при публикации Reels.");
+    }
+    if (state.shareSheetOpen) {
+      throw new Error(
+        "Открылось окно «Поделиться с друзьями» вместо публикации Reels.",
+      );
+    }
+    if (state.success && minWaitDone) {
+      return;
+    }
+    if (!state.onComposeScreen && !state.headerPublishVisible && minWaitDone) {
+      leftComposeStreak += 1;
+      if (leftComposeStreak >= 2) {
+        return;
+      }
+    } else if (state.onComposeScreen || state.headerPublishVisible) {
+      leftComposeStreak = 0;
+    }
+
+    await page.waitForTimeout(2000);
+  }
+
+  const finalState = await getPublishState(page);
+  if (finalState.onComposeScreen || finalState.headerPublishVisible) {
+    throw new Error(
+      "Instagram не подтвердил публикацию Reels — экран «Новое видео Reels» всё ещё открыт.",
+    );
+  }
+
+  const remaining = publishMinWaitMs - (Date.now() - startedAt);
+  if (remaining > 0) {
+    await page.waitForTimeout(remaining);
+  }
+}
+
 async function clickShare(page: Page): Promise<void> {
+  await dismissPromoDialogs(page);
+
+  const headerShare = page.locator("a, button, div, span, [role='button']").filter({
+    hasText: /^Поделиться$|^Share$/,
+  });
+  const headerCount = await headerShare.count();
+  for (let i = 0; i < headerCount; i++) {
+    const item = headerShare.nth(i);
+    const inDialog = await item.evaluate((el) => Boolean(el.closest('[role="dialog"]')));
+    if (inDialog) continue;
+
+    const box = await item.boundingBox();
+    if (!box || box.y > 200) continue;
+
+    const pageWidth = await page.evaluate(() => window.innerWidth);
+    if (box.x + box.width < pageWidth * 0.45) continue;
+
+    try {
+      await item.click({ timeout: 8000 });
+      return;
+    } catch {
+      // try next header match
+    }
+  }
+
   const shareCandidates = [
     page.getByRole("button", { name: INSTAGRAM_SELECTORS.shareButtonText }).first(),
     page.locator('div[role="button"]').filter({ hasText: INSTAGRAM_SELECTORS.shareButtonText }).first(),
     page.locator('[aria-label="Поделиться"], [aria-label="Share"]').first(),
+    page.getByText(/^Поделиться$|^Share$/).first(),
   ];
 
   for (const locator of shareCandidates) {
     if ((await locator.count()) === 0) continue;
     try {
       await locator.scrollIntoViewIfNeeded();
-      await locator.click({ timeout: 5000 });
+      await locator.click({ timeout: 8000 });
       return;
     } catch {
       // try next
@@ -133,7 +257,11 @@ async function clickShare(page: Page): Promise<void> {
   throw new Error("Не найдена кнопка «Поделиться» для публикации Reels.");
 }
 
-async function runUploadFlow(page: Page, filePath: string, caption?: string): Promise<void> {
+async function runUploadFlow(
+  page: Page,
+  filePath: string,
+  caption?: string,
+): Promise<void> {
   await page.goto(INSTAGRAM_SELECTORS.reelsUrl, {
     waitUntil: "domcontentloaded",
     timeout: 120_000,
@@ -179,7 +307,7 @@ async function runUploadFlow(page: Page, filePath: string, caption?: string): Pr
   }
 
   await clickShare(page);
-  await page.waitForTimeout(30_000);
+  await waitForPublishComplete(page);
 }
 
 /**

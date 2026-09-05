@@ -1,21 +1,26 @@
-import { chromium } from "patchright";
+import type { ProxyConfig } from "@autouploader/shared";
+import { launchAutomationBrowser } from "../browser-pool.js";
 import { INSTAGRAM_SELECTORS } from "./selectors.js";
+import {
+  runInstagramLoginViaSubprocess,
+  shouldUseInstagramSubprocess,
+} from "./subprocess.js";
 
 const LOGIN_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 2000;
 
 /**
- * Opens a visible browser at Instagram login and waits for the user to finish
- * login manually (password / 2FA / checkpoint in the browser). Detects success
- * via the `sessionid` cookie, then returns storageState for later uploads.
- *
- * Ported from the working Selenium InstagramManual.login flow.
+ * Opens a visible browser at Instagram and waits for manual login.
+ * In the packaged Electron app uses bundled Camoufox worker (no Patchright install).
  */
-export async function runInstagramLoginFlow(): Promise<{ storageState: object }> {
-  const browser = await chromium.launch({
-    headless: false,
-    args: ["--disable-blink-features=AutomationControlled"],
-  });
+export async function runInstagramLoginFlow(
+  proxy?: ProxyConfig,
+): Promise<{ storageState: object }> {
+  if (shouldUseInstagramSubprocess()) {
+    return runInstagramLoginViaSubprocess(proxy);
+  }
+
+  const browser = await launchAutomationBrowser(false);
 
   try {
     const context = await browser.newContext({
@@ -32,14 +37,12 @@ export async function runInstagramLoginFlow(): Promise<{ storageState: object }>
     const deadline = Date.now() + LOGIN_TIMEOUT_MS;
     let loggedIn = false;
     while (Date.now() < deadline) {
-      const cookies = await context.cookies();
-      const hasSession = cookies.some((c) => c.name === INSTAGRAM_SELECTORS.sessionCookieName);
+      const cookies = await context.cookies("https://www.instagram.com");
+      const hasSession = cookies.some(
+        (c) => c.name === INSTAGRAM_SELECTORS.sessionCookieName && Boolean(c.value),
+      );
       const url = page.url();
       if (hasSession && !url.includes("/accounts/login") && !url.includes("/challenge")) {
-        loggedIn = true;
-        break;
-      }
-      if (hasSession && !url.includes("/accounts/login")) {
         loggedIn = true;
         break;
       }
@@ -55,8 +58,7 @@ export async function runInstagramLoginFlow(): Promise<{ storageState: object }>
     await page.goto(INSTAGRAM_SELECTORS.homeUrl, { waitUntil: "domcontentloaded" }).catch(() => {});
     await page.waitForTimeout(1500);
 
-    const storageState = await context.storageState();
-    return { storageState };
+    return { storageState: await context.storageState() };
   } finally {
     await browser.close();
   }

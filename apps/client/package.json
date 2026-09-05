@@ -1,7 +1,7 @@
 {
   "name": "@autouploader/client",
   "private": true,
-  "version": "0.1.4",
+  "version": "0.1.8",
   "description": "ROAD — публикации по расписанию",
   "repository": {
     "type": "git",
@@ -21,6 +21,7 @@
     "package:linux": "pnpm ensure:license-config && pnpm prepare:instagram-worker && pnpm build && electron-builder --linux",
     "publish:github": "pnpm ensure:license-config && pnpm prepare:instagram-worker && pnpm build && electron-builder --publish always",
     "publish:github:mac": "pnpm ensure:license-config && pnpm prepare:instagram-worker && pnpm build && electron-builder --mac --publish always",
+    "publish:github:mac-ci": "node scripts/trigger-macos-release.mjs",
     "postinstall": "electron-builder install-app-deps"
   },
   "dependencies": {

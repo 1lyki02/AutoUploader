@@ -14,9 +14,11 @@ const lockedAccounts = new Set<string>();
 
 function chromiumCandidates(): string[] {
   const fromEnv = process.env.TIKTOK_BROWSER_EXECUTABLE;
-  const base = [fromEnv, chromium.executablePath()].filter(
-    (value): value is string => Boolean(value),
-  );
+  const patchrightPath = chromium.executablePath();
+  const base = [
+    fromEnv,
+    patchrightPath && existsSync(patchrightPath) ? patchrightPath : undefined,
+  ].filter((value): value is string => Boolean(value));
 
   if (process.platform === "darwin") {
     return [
