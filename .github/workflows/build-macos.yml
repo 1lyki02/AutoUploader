@@ -80,6 +80,8 @@ jobs:
           exit 1
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build client
         run: pnpm --filter @autouploader/client build
