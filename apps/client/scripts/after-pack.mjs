@@ -1,5 +1,6 @@
 import path from "node:path";
 import { chmodSync, existsSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 
@@ -34,11 +35,21 @@ export default async function afterPack(context) {
   }
 
   if (platform === "darwin") {
-    const resourcesDir = path.join(context.appOutDir, "../Resources");
-    const ffmpegPath = path.join(resourcesDir, "ffmpeg", "ffmpeg");
+    const appName = `${context.packager.appInfo.productFilename}.app`;
+    const appPath = path.join(context.appOutDir, appName);
+    const ffmpegPath = path.join(appPath, "Contents/Resources/ffmpeg/ffmpeg");
     if (existsSync(ffmpegPath)) {
       chmodSync(ffmpegPath, 0o755);
       console.log(`[afterPack] chmod +x ${ffmpegPath}`);
+    }
+
+    // Ad-hoc sign so macOS does not report "app is damaged" for unsigned builds.
+    // Sign nested helpers/binaries first, then the outer bundle.
+    if (existsSync(appPath)) {
+      execSync(`codesign --force --deep --sign - "${appPath}"`, { stdio: "inherit" });
+      console.log(`[afterPack] ad-hoc signed ${appPath}`);
+    } else {
+      console.warn(`[afterPack] skip mac sign: app not found at ${appPath}`);
     }
   }
 }
