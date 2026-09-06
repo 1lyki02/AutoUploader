@@ -44,7 +44,13 @@ export default async function afterPack(context) {
     }
 
     const camoufoxDir = path.join(appPath, "Contents/Resources/instagram-worker/camoufox");
-    const camoufoxBin = path.join(camoufoxDir, "camoufox");
+    const camoufoxBin = path.join(
+      camoufoxDir,
+      "Camoufox.app",
+      "Contents",
+      "MacOS",
+      "camoufox",
+    );
     const camoufoxVersion = path.join(camoufoxDir, "version.json");
     if (!existsSync(camoufoxVersion) || !existsSync(camoufoxBin)) {
       throw new Error(

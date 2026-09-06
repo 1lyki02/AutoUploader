@@ -45,10 +45,20 @@ if (!existsSync(workerSrc)) {
   throw new Error(`Worker script not found: ${workerSrc}`);
 }
 
+function camoufoxLaunchBinary(dir) {
+  if (process.platform === "win32") {
+    return path.join(dir, "camoufox.exe");
+  }
+  if (process.platform === "darwin") {
+    return path.join(dir, "Camoufox.app", "Contents", "MacOS", "camoufox");
+  }
+  return path.join(dir, "camoufox-bin");
+}
+
 function camoufoxLooksInstalled(dir) {
-  const binary = process.platform === "win32" ? "camoufox.exe" : "camoufox";
   return (
-    existsSync(path.join(dir, "version.json")) && existsSync(path.join(dir, binary))
+    existsSync(path.join(dir, "version.json")) &&
+    existsSync(camoufoxLaunchBinary(dir))
   );
 }
 

@@ -85,7 +85,7 @@ jobs:
       - name: Verify Instagram worker bundle
         run: |
           CAMOUFOX_DIR="apps/client/build/instagram-worker/camoufox"
-          if [ ! -f "$CAMOUFOX_DIR/version.json" ] || [ ! -f "$CAMOUFOX_DIR/camoufox" ]; then
+          if [ ! -f "$CAMOUFOX_DIR/version.json" ] || [ ! -f "$CAMOUFOX_DIR/Camoufox.app/Contents/MacOS/camoufox" ]; then
             echo "Instagram worker bundle incomplete (missing macOS Camoufox), re-preparing..."
             for attempt in 1 2 3; do
               echo "Verify retry $attempt/3"
@@ -99,7 +99,7 @@ jobs:
             done
           fi
           test -f "$CAMOUFOX_DIR/version.json"
-          test -f "$CAMOUFOX_DIR/camoufox"
+          test -f "$CAMOUFOX_DIR/Camoufox.app/Contents/MacOS/camoufox"
           ls -la "$CAMOUFOX_DIR" | head -20
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
