@@ -22,6 +22,8 @@ contextBridge.exposeInMainWorld("api", {
       accountId: string,
       proxy: { server: string; username?: string; password?: string } | null,
     ) => ipcRenderer.invoke(IPC_CHANNELS.updateAccountProxy, accountId, proxy),
+    updateLabel: (accountId: string, label: string) =>
+      ipcRenderer.invoke(IPC_CHANNELS.updateAccountLabel, accountId, label),
   },
   video: {
     pickFile: () => ipcRenderer.invoke(IPC_CHANNELS.pickVideoFile),

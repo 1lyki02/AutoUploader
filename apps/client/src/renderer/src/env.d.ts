@@ -66,6 +66,7 @@ declare global {
         list: () => Promise<AccountSummary[]>;
         delete: (accountId: string) => Promise<void>;
         updateProxy: (accountId: string, proxy: ProxyConfig | null) => Promise<void>;
+        updateLabel: (accountId: string, label: string) => Promise<void>;
       };
       video: {
         pickFile: () => Promise<string | null>;

@@ -8,6 +8,24 @@ import { cn } from "@/lib/utils";
 
 type ConnectPlatform = "youtube" | "tiktok" | "instagram";
 
+const platformNames: Record<ConnectPlatform, string> = {
+  youtube: "YouTube",
+  tiktok: "TikTok",
+  instagram: "Instagram",
+};
+
+export function suggestedAccountLabel(
+  platform: ConnectPlatform,
+  accounts: AccountSummary[],
+): string {
+  const base = platformNames[platform];
+  const samePlatform = accounts.filter((account) => account.platform === platform);
+  if (samePlatform.length === 0) {
+    return base;
+  }
+  return `${base} ${samePlatform.length + 1}`;
+}
+
 export function AccountsView({
   accounts,
   selectedAccountIds,
@@ -16,19 +34,24 @@ export function AccountsView({
   onToggle,
   onToggleAll,
   onSaveProxy,
+  onSaveLabel,
   onDelete,
 }: {
   accounts: AccountSummary[];
   selectedAccountIds: string[];
   connecting: ConnectPlatform | null;
-  onConnect: (platform: ConnectPlatform) => void;
+  onConnect: (platform: ConnectPlatform, label: string) => void;
   onToggle: (id: string, selected: boolean) => void;
   onToggleAll: () => void;
   onSaveProxy: (id: string, proxy: ProxyConfig | null) => Promise<void>;
+  onSaveLabel: (id: string, label: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [proxyAccount, setProxyAccount] = useState<AccountSummary | null>(null);
   const [deleteAccount, setDeleteAccount] = useState<AccountSummary | null>(null);
+  const [connectPlatform, setConnectPlatform] = useState<ConnectPlatform | null>(null);
+  const [connectLabel, setConnectLabel] = useState("");
+  const [accountLabel, setAccountLabel] = useState("");
   const [server, setServer] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -38,13 +61,30 @@ export function AccountsView({
     setServer(proxyAccount?.proxy?.server ?? "");
     setUsername(proxyAccount?.proxy?.username ?? "");
     setPassword(proxyAccount?.proxy?.password ?? "");
+    setAccountLabel(proxyAccount?.label ?? "");
   }, [proxyAccount]);
 
-  const saveProxy = async () => {
+  useEffect(() => {
+    if (!connectPlatform) return;
+    setConnectLabel(suggestedAccountLabel(connectPlatform, accounts));
+  }, [accounts, connectPlatform]);
+
+  const saveSettings = async () => {
     if (!proxyAccount) return;
+    const trimmedLabel = accountLabel.trim();
+    if (!trimmedLabel) return;
+
     setSaving(true);
     try {
-      await onSaveProxy(proxyAccount.id, server.trim() ? { server: server.trim(), username: username || undefined, password: password || undefined } : null);
+      if (trimmedLabel !== proxyAccount.label) {
+        await onSaveLabel(proxyAccount.id, trimmedLabel);
+      }
+      await onSaveProxy(
+        proxyAccount.id,
+        server.trim()
+          ? { server: server.trim(), username: username || undefined, password: password || undefined }
+          : null,
+      );
       setProxyAccount(null);
     } catch {
       // The parent reports the IPC error in a toast; keep the dialog open for correction.
@@ -70,7 +110,7 @@ export function AccountsView({
       <SectionHeader
         eyebrow="Интеграции"
         title="Аккаунты"
-        description="Подключайте площадки, выбирайте получателей публикации и настраивайте прокси."
+        description="Подключайте площадки, подписывайте аккаунты и настраивайте прокси."
         action={accounts.length ? <Button variant="secondary" onClick={onToggleAll}>{selectedAccountIds.length === accounts.length ? "Снять выбор" : "Выбрать все"}</Button> : undefined}
       />
 
@@ -78,7 +118,7 @@ export function AccountsView({
         <div className="mb-4"><h2 className="font-semibold">Подключить площадку</h2><p className="mt-1 text-xs text-muted-foreground">Авторизация откроется в защищённом окне браузера.</p></div>
         <div className="grid grid-cols-3 gap-3">
           {connectOptions.map(({ id, label, detail, icon: Icon, className }) => (
-            <button key={id} disabled={connecting !== null} onClick={() => onConnect(id)} className="flex items-center gap-3 rounded-xl border border-border bg-background/25 p-3.5 text-left transition-colors hover:border-primary/30 hover:bg-accent/50 disabled:opacity-45">
+            <button key={id} disabled={connecting !== null} onClick={() => setConnectPlatform(id)} className="flex items-center gap-3 rounded-xl border border-border bg-background/25 p-3.5 text-left transition-colors hover:border-primary/30 hover:bg-accent/50 disabled:opacity-45">
               <div className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl", className)}>{connecting === id ? <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" /> : <Icon size={18} />}</div>
               <div><p className="text-sm font-medium">{connecting === id ? "Подключение…" : label}</p><p className="mt-0.5 text-[11px] text-muted-foreground">{detail}</p></div>
               <Plus size={15} className="ml-auto text-muted-foreground" />
@@ -116,8 +156,46 @@ export function AccountsView({
         <EmptyState title="Аккаунтов пока нет" description="Подключите YouTube, TikTok или Instagram, чтобы начать массовую публикацию." />
       )}
 
-      <Dialog open={!!proxyAccount} onOpenChange={(open) => !open && setProxyAccount(null)} title={`Настройки — ${proxyAccount?.label ?? ""}`} description="Прокси применяется только к этому аккаунту. Оставьте сервер пустым, чтобы отключить его.">
+      <Dialog
+        open={!!connectPlatform}
+        onOpenChange={(open) => !open && setConnectPlatform(null)}
+        title={`Подключить ${connectPlatform ? platformNames[connectPlatform] : ""}`}
+        description="Задайте название, чтобы не путать аккаунты одной площадки."
+      >
         <div className="grid gap-4">
+          <label className="grid gap-1.5 text-xs font-medium">
+            Название аккаунта
+            <Input
+              value={connectLabel}
+              onChange={(event) => setConnectLabel(event.target.value)}
+              placeholder="Например: Основной канал"
+              autoFocus
+            />
+          </label>
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setConnectPlatform(null)} disabled={connecting !== null}>
+              Отмена
+            </Button>
+            <Button
+              disabled={!connectLabel.trim() || connecting !== null}
+              onClick={() => {
+                if (!connectPlatform || !connectLabel.trim()) return;
+                onConnect(connectPlatform, connectLabel.trim());
+                setConnectPlatform(null);
+              }}
+            >
+              {connecting ? "Подключение…" : "Подключить"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog open={!!proxyAccount} onOpenChange={(open) => !open && setProxyAccount(null)} title={`Настройки — ${proxyAccount?.label ?? ""}`} description="Измените название аккаунта или настройте прокси.">
+        <div className="grid gap-4">
+          <label className="grid gap-1.5 text-xs font-medium">
+            Название аккаунта
+            <Input value={accountLabel} onChange={(event) => setAccountLabel(event.target.value)} placeholder="Например: Reels основной" />
+          </label>
           <label className="grid gap-1.5 text-xs font-medium">Сервер прокси<Input value={server} onChange={(event) => setServer(event.target.value)} placeholder="http://host:port" /></label>
           <div className="grid grid-cols-2 gap-3">
             <label className="grid gap-1.5 text-xs font-medium">Логин<Input value={username} onChange={(event) => setUsername(event.target.value)} placeholder="Необязательно" /></label>
@@ -125,7 +203,7 @@ export function AccountsView({
           </div>
           <div className="mt-2 flex items-center justify-between">
             <Button variant="destructive" onClick={() => { setDeleteAccount(proxyAccount); setProxyAccount(null); }}><Trash2 size={14} />Удалить аккаунт</Button>
-            <Button onClick={() => void saveProxy()} disabled={saving}>{saving ? "Сохраняем…" : "Сохранить прокси"}</Button>
+            <Button onClick={() => void saveSettings()} disabled={saving || !accountLabel.trim()}>{saving ? "Сохраняем…" : "Сохранить"}</Button>
           </div>
         </div>
       </Dialog>

@@ -123,4 +123,19 @@ export function registerAccountsHandlers(): void {
       if (account) await syncAccountToServer(account);
     },
   );
+
+  ipcMain.handle(IPC_CHANNELS.updateAccountLabel, async (_event, accountId: string, label: unknown) => {
+    const trimmed = typeof label === "string" ? label.trim() : "";
+    if (!trimmed) {
+      throw new Error("Название аккаунта не может быть пустым");
+    }
+    if (trimmed.length > 80) {
+      throw new Error("Название аккаунта слишком длинное (максимум 80 символов)");
+    }
+
+    const db = getDb();
+    db.update(accounts).set({ label: trimmed }).where(eq(accounts.id, accountId)).run();
+    const account = db.select().from(accounts).where(eq(accounts.id, accountId)).get();
+    if (account) await syncAccountToServer(account);
+  });
 }

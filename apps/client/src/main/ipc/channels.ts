@@ -6,6 +6,7 @@ export const IPC_CHANNELS = {
   listAccounts: "accounts:list",
   deleteAccount: "accounts:delete",
   updateAccountProxy: "accounts:update-proxy",
+  updateAccountLabel: "accounts:update-label",
   pickVideoFile: "video:pick",
   pickVideoFiles: "video:pick-many",
   uploadToYoutube: "video:upload-youtube",

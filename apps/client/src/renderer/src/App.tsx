@@ -100,7 +100,7 @@ export function App() {
     return jobs.filter((job) => ids.has(job.id));
   }, [batchJobIds, jobs]);
 
-  const connect = async (platform: ConnectPlatform) => {
+  const connect = async (platform: ConnectPlatform, label: string) => {
     if (platform === "youtube") {
       try {
         const oauth = await window.api.youtube.getOAuthClient();
@@ -118,13 +118,13 @@ export function App() {
     }
 
     setConnecting(platform);
-    const toastId = toast.loading(`Подключаем ${platform}…`, { description: "Завершите вход в открывшемся окне браузера." });
+    const toastId = toast.loading(`Подключаем ${label}…`, { description: "Завершите вход в открывшемся окне браузера." });
     try {
-      if (platform === "youtube") await window.api.accounts.connectYoutube("YouTube");
-      if (platform === "tiktok") await window.api.accounts.connectTiktok("TikTok");
-      if (platform === "instagram") await window.api.accounts.connectInstagram("Instagram Reels");
+      if (platform === "youtube") await window.api.accounts.connectYoutube(label);
+      if (platform === "tiktok") await window.api.accounts.connectTiktok(label);
+      if (platform === "instagram") await window.api.accounts.connectInstagram(label);
       await refreshAccounts();
-      toast.success("Аккаунт подключён", { id: toastId });
+      toast.success("Аккаунт подключён", { id: toastId, description: label });
     } catch (error) {
       toast.error("Ошибка подключения", { id: toastId, description: (error as Error).message });
     } finally {
@@ -221,6 +221,17 @@ export function App() {
       toast.success("Публикация отменена");
     } catch (error) {
       toast.error("Не удалось отменить", { description: (error as Error).message });
+    }
+  };
+
+  const saveLabel = async (accountId: string, label: string) => {
+    try {
+      await window.api.accounts.updateLabel(accountId, label);
+      await refreshAccounts();
+      toast.success("Название сохранено");
+    } catch (error) {
+      toast.error("Не удалось сохранить название", { description: (error as Error).message });
+      throw error;
     }
   };
 
@@ -345,10 +356,11 @@ export function App() {
             accounts={accounts}
             selectedAccountIds={selectedAccountIds}
             connecting={connecting}
-            onConnect={(platform) => void connect(platform)}
+            onConnect={(platform, label) => void connect(platform, label)}
             onToggle={toggleAccount}
             onToggleAll={() => setSelectedAccountIds(selectedAccountIds.length === accounts.length ? [] : accounts.map((account) => account.id))}
             onSaveProxy={saveProxy}
+            onSaveLabel={saveLabel}
             onDelete={deleteAccount}
           />
         )}

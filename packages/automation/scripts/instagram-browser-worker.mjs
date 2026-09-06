@@ -56,7 +56,8 @@ async function readJsonFile(filePath) {
 
 /**
  * Instagram upload fails in Firefox true-headless on Windows.
- * `background=true` runs headed; window is hidden via transparency on Windows.
+ * Background mode runs headed; on Windows the window is hidden via transparency,
+ * on macOS it is moved off-screen (minimize breaks rendering).
  */
 async function launchBrowser(proxy, background = false) {
   const launch = {
