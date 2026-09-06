@@ -65,7 +65,7 @@ jobs:
         id: ig-cache
         with:
           path: apps/client/build/instagram-worker
-          key: ig-worker-${{ hashFiles('packages/automation/scripts/instagram-browser-worker.mjs', 'apps/client/package.json', 'pnpm-lock.yaml') }}
+          key: ig-worker-macos-${{ hashFiles('packages/automation/scripts/instagram-browser-worker.mjs', 'apps/client/package.json', 'pnpm-lock.yaml', 'apps/client/scripts/prepare-instagram-worker.mjs') }}
 
       - name: Prepare Instagram worker
         if: steps.ig-cache.outputs.cache-hit != 'true'
@@ -78,6 +78,30 @@ jobs:
             sleep 45
           done
           exit 1
+        env:
+          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify Instagram worker bundle
+        run: |
+          CAMOUFOX_DIR="apps/client/build/instagram-worker/camoufox"
+          if [ ! -f "$CAMOUFOX_DIR/version.json" ] || [ ! -f "$CAMOUFOX_DIR/camoufox" ]; then
+            echo "Instagram worker bundle incomplete (missing macOS Camoufox), re-preparing..."
+            for attempt in 1 2 3; do
+              echo "Verify retry $attempt/3"
+              if pnpm --filter @autouploader/client prepare:instagram-worker; then
+                break
+              fi
+              sleep 45
+              if [ "$attempt" -eq 3 ]; then
+                exit 1
+              fi
+            done
+          fi
+          test -f "$CAMOUFOX_DIR/version.json"
+          test -f "$CAMOUFOX_DIR/camoufox"
+          ls -la "$CAMOUFOX_DIR" | head -20
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

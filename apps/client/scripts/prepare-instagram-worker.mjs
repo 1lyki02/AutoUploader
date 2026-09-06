@@ -46,7 +46,10 @@ if (!existsSync(workerSrc)) {
 }
 
 function camoufoxLooksInstalled(dir) {
-  return existsSync(path.join(dir, process.platform === "win32" ? "camoufox.exe" : "camoufox"));
+  const binary = process.platform === "win32" ? "camoufox.exe" : "camoufox";
+  return (
+    existsSync(path.join(dir, "version.json")) && existsSync(path.join(dir, binary))
+  );
 }
 
 function resolveCamoufoxCacheSource() {

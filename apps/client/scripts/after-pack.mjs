@@ -43,6 +43,28 @@ export default async function afterPack(context) {
       console.log(`[afterPack] chmod +x ${ffmpegPath}`);
     }
 
+    const camoufoxDir = path.join(appPath, "Contents/Resources/instagram-worker/camoufox");
+    const camoufoxBin = path.join(camoufoxDir, "camoufox");
+    const camoufoxVersion = path.join(camoufoxDir, "version.json");
+    if (!existsSync(camoufoxVersion) || !existsSync(camoufoxBin)) {
+      throw new Error(
+        `[afterPack] macOS Camoufox bundle missing in ${appPath}. ` +
+          `Expected ${camoufoxVersion} and ${camoufoxBin}. ` +
+          "Run prepare:instagram-worker on macOS before packaging.",
+      );
+    }
+    chmodSync(camoufoxBin, 0o755);
+    console.log(`[afterPack] verified Camoufox bundle at ${camoufoxDir}`);
+
+    const workerNode = path.join(
+      appPath,
+      "Contents/Resources/instagram-worker/node/node",
+    );
+    if (existsSync(workerNode)) {
+      chmodSync(workerNode, 0o755);
+      console.log(`[afterPack] chmod +x ${workerNode}`);
+    }
+
     // Ad-hoc sign so macOS does not report "app is damaged" for unsigned builds.
     // Sign nested helpers/binaries first, then the outer bundle.
     if (existsSync(appPath)) {
