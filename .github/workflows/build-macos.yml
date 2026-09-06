@@ -65,7 +65,7 @@ jobs:
         id: ig-cache
         with:
           path: apps/client/build/instagram-worker
-          key: ig-worker-macos-${{ hashFiles('packages/automation/scripts/instagram-browser-worker.mjs', 'apps/client/package.json', 'pnpm-lock.yaml', 'apps/client/scripts/prepare-instagram-worker.mjs') }}
+          key: ig-worker-macos-v2-${{ hashFiles('packages/automation/scripts/instagram-browser-worker.mjs', 'apps/client/package.json', 'pnpm-lock.yaml', 'apps/client/scripts/prepare-instagram-worker.mjs') }}
 
       - name: Prepare Instagram worker
         if: steps.ig-cache.outputs.cache-hit != 'true'
@@ -79,7 +79,6 @@ jobs:
           done
           exit 1
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -103,7 +102,6 @@ jobs:
           test -f "$CAMOUFOX_DIR/camoufox"
           ls -la "$CAMOUFOX_DIR" | head -20
         env:
-          PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

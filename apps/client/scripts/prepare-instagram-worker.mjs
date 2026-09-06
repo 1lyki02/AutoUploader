@@ -117,11 +117,13 @@ execSync("npm install --omit=dev --no-package-lock", {
 
 log(`Fetching Camoufox browser to ${camoufoxDir}...`);
 mkdirSync(camoufoxDir, { recursive: true });
+const fetchEnv = { ...process.env };
+delete fetchEnv.PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD;
 try {
   execSync("npx camoufox-js fetch", {
     cwd: outDir,
     env: {
-      ...process.env,
+      ...fetchEnv,
       CAMOUFOX_INSTALL_DIR: camoufoxDir,
       GITHUB_TOKEN: process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN,
     },
@@ -133,6 +135,13 @@ try {
   }
   log(`Camoufox fetch failed, reusing cached browser from ${tempCamoufoxBackup}`);
   cpSync(tempCamoufoxBackup, camoufoxDir, { recursive: true });
+}
+
+if (!camoufoxLooksInstalled(camoufoxDir)) {
+  throw new Error(
+    `Camoufox browser was not installed in ${camoufoxDir}. ` +
+      "Ensure camoufox-js fetch can download the browser (do not set PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD during fetch).",
+  );
 }
 
 const nodeRuntimeDir = path.join(outDir, "node");
